@@ -6,7 +6,7 @@
 
 Name:           telepathy-glib
 Version:        0.20.4
-Release:        3%{?dist}
+Release:        5%{?dist}
 Summary:        GLib bindings for Telepathy
 
 Group:          System Environment/Libraries
@@ -114,6 +114,12 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 
 
 %changelog
+* Fri Jan 24 2014 Daniel Mach <dmach@redhat.com> - 0.20.4-5
+- Mass rebuild 2014-01-24
+
+* Fri Dec 27 2013 Daniel Mach <dmach@redhat.com> - 0.20.4-4
+- Mass rebuild 2013-12-27
+
 * Tue Nov  5 2013 Debarshi Ray <rishi@fedoraproject.org> - 0.20.4-3
 - GCompareFunc values can be negative or positive, and not just -1 or 1
 
