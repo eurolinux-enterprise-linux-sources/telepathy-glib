@@ -17,6 +17,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include "config.h"
+
 #include <glib.h>
 #include <gio/gio.h>
 #include <telepathy-glib/util.h>
@@ -25,8 +27,6 @@ int main (int argc, char **argv)
 {
   GObject *o;
   GHashTable *h;
-
-  g_type_init ();
 
   o = (GObject *) g_file_new_for_path ("/");
   tp_clear_object (&o);

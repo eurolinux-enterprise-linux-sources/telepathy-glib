@@ -73,6 +73,14 @@
  * for many of the properties on this object. Refer to each property's
  * documentation for whether it can be used in this way.
  *
+ * #TpAccount objects should normally be obtained from the #TpAccountManager.
+ *
+ * Since 0.16, #TpAccount always has a non-%NULL #TpProxy:factory, and its
+ * #TpProxy:factory will be propagated to its #TpConnection
+ * (if any). If a #TpAccount is created without going via the
+ * #TpAccountManager or specifying a #TpProxy:factory, the default
+ * is to use a new #TpAutomaticClientFactory.
+ *
  * Since: 0.7.32
  */
 
@@ -141,6 +149,7 @@ G_DEFINE_TYPE (TpAccount, tp_account, TP_TYPE_PROXY)
 enum {
   STATUS_CHANGED,
   PRESENCE_CHANGED,
+  AVATAR_CHANGED,
   LAST_SIGNAL
 };
 
@@ -181,6 +190,7 @@ enum {
   PROP_STORAGE_IDENTIFIER_VARIANT,
   PROP_STORAGE_RESTRICTIONS,
   PROP_SUPERSEDES,
+  PROP_URI_SCHEMES,
   N_PROPS
 };
 
@@ -231,9 +241,9 @@ connection_is_internal (TpAccount *self)
  * feature on a #TpAccount.
  *
  * When this feature is prepared, it is guaranteed that #TpAccount:connection
- * will always be either %NULL or prepared. If the account was created using a
- * #TpSimpleClientFactory, the same factory will be used to create #TpConnection
- * object and to determine desired connection features. Change notification of
+ * will always be either %NULL or prepared. The account's #TpProxy:factory
+ * will be used to create the #TpConnection object and to determine its
+ * desired connection features. Change notification of the
  * #TpAccount:connection property will be delayed until all features (at least
  * %TP_CONNECTION_FEATURE_CORE) are prepared. See
  * tp_simple_client_factory_add_account_features() to define which features
@@ -622,6 +632,8 @@ _tp_account_update (TpAccount *account,
   TpConnectionStatus old_s = priv->connection_status;
   gboolean status_changed = FALSE;
   gboolean presence_changed = FALSE;
+  const gchar *status;
+  const gchar *message;
 
   tp_proxy_add_interfaces (proxy, tp_asv_get_strv (properties, "Interfaces"));
 
@@ -712,29 +724,30 @@ _tp_account_update (TpAccount *account,
       presence_changed = TRUE;
       arr = tp_asv_get_boxed (properties, "CurrentPresence",
           TP_STRUCT_TYPE_SIMPLE_PRESENCE);
-      priv->cur_presence = g_value_get_uint (g_value_array_get_nth (arr, 0));
 
+      tp_value_array_unpack (arr, 3,
+          &priv->cur_presence,
+          &status,
+          &message);
       g_free (priv->cur_status);
-      priv->cur_status = g_value_dup_string (g_value_array_get_nth (arr, 1));
-
+      priv->cur_status = g_strdup (status);
       g_free (priv->cur_message);
-      priv->cur_message = g_value_dup_string (g_value_array_get_nth (arr, 2));
+      priv->cur_message = g_strdup (message);
     }
 
   if (g_hash_table_lookup (properties, "RequestedPresence") != NULL)
     {
       arr = tp_asv_get_boxed (properties, "RequestedPresence",
           TP_STRUCT_TYPE_SIMPLE_PRESENCE);
-      priv->requested_presence =
-        g_value_get_uint (g_value_array_get_nth (arr, 0));
 
+      tp_value_array_unpack (arr, 3,
+          &priv->requested_presence,
+          &status,
+          &message);
       g_free (priv->requested_status);
-      priv->requested_status =
-        g_value_dup_string (g_value_array_get_nth (arr, 1));
-
+      priv->requested_status = g_strdup (status);
       g_free (priv->requested_message);
-      priv->requested_message =
-        g_value_dup_string (g_value_array_get_nth (arr, 2));
+      priv->requested_message = g_strdup (message);
 
       g_object_notify (G_OBJECT (account), "requested-presence-type");
       g_object_notify (G_OBJECT (account), "requested-status");
@@ -745,16 +758,15 @@ _tp_account_update (TpAccount *account,
     {
       arr = tp_asv_get_boxed (properties, "AutomaticPresence",
           TP_STRUCT_TYPE_SIMPLE_PRESENCE);
-      priv->auto_presence =
-        g_value_get_uint (g_value_array_get_nth (arr, 0));
 
+      tp_value_array_unpack (arr, 3,
+          &priv->auto_presence,
+          &status,
+          &message);
       g_free (priv->auto_status);
-      priv->auto_status =
-        g_value_dup_string (g_value_array_get_nth (arr, 1));
-
+      priv->auto_status = g_strdup (status);
       g_free (priv->auto_message);
-      priv->auto_message =
-        g_value_dup_string (g_value_array_get_nth (arr, 2));
+      priv->auto_message = g_strdup (message);
 
       g_object_notify (G_OBJECT (account), "automatic-presence-type");
       g_object_notify (G_OBJECT (account), "automatic-status");
@@ -996,6 +1008,14 @@ _tp_account_properties_changed (TpAccount *proxy,
 }
 
 static void
+avatar_changed_cb (TpAccount *self,
+    gpointer user_data,
+    GObject *weak_object)
+{
+  g_signal_emit (self, signals[AVATAR_CHANGED], 0);
+}
+
+static void
 _tp_account_got_all_cb (TpProxy *proxy,
     GHashTable *properties,
     const GError *error,
@@ -1016,6 +1036,47 @@ _tp_account_got_all_cb (TpProxy *proxy,
     }
 
   _tp_account_update (self, properties);
+
+  /* We can't try connecting this signal earlier as tp_proxy_add_interfaces()
+   * has to be called first if we support the Avatar interface. */
+  tp_cli_account_interface_avatar_connect_to_avatar_changed (self,
+      avatar_changed_cb, NULL, NULL, G_OBJECT (self), NULL);
+}
+
+static void
+addressing_props_changed (TpAccount *self,
+    GHashTable *changed_properties)
+{
+  const gchar * const * v;
+
+  if (self->priv->uri_schemes == NULL)
+    /* We did not fetch the initial value yet, ignoring */
+    return;
+
+  v = tp_asv_get_strv (changed_properties, "URISchemes");
+  if (v == NULL)
+    return;
+
+  g_strfreev (self->priv->uri_schemes);
+  self->priv->uri_schemes = g_strdupv ((GStrv) v);
+
+  g_object_notify (G_OBJECT (self), "uri-schemes");
+}
+
+static void
+dbus_properties_changed_cb (TpProxy *proxy,
+    const gchar *interface_name,
+    GHashTable *changed_properties,
+    const gchar **invalidated_properties,
+    gpointer user_data,
+    GObject *weak_object)
+{
+  TpAccount *self = TP_ACCOUNT (weak_object);
+
+  if (!tp_strdiff (interface_name, TP_IFACE_ACCOUNT_INTERFACE_ADDRESSING))
+    {
+      addressing_props_changed (self, changed_properties);
+    }
 }
 
 static void
@@ -1057,6 +1118,9 @@ _tp_account_constructed (GObject *object)
 
   tp_cli_account_connect_to_account_property_changed (self,
       _tp_account_properties_changed, NULL, NULL, object, NULL);
+
+  tp_cli_dbus_properties_connect_to_properties_changed (self,
+      dbus_properties_changed_cb, NULL, NULL, object, NULL);
 
   tp_cli_dbus_properties_call_get_all (self, -1, TP_IFACE_ACCOUNT,
       _tp_account_got_all_cb, NULL, NULL, G_OBJECT (self));
@@ -1148,6 +1212,9 @@ _tp_account_get_property (GObject *object,
       break;
     case PROP_SUPERSEDES:
       g_value_set_boxed (value, self->priv->supersedes);
+      break;
+    case PROP_URI_SCHEMES:
+      g_value_set_boxed (value, self->priv->uri_schemes);
       break;
     case PROP_AUTOMATIC_PRESENCE_TYPE:
       g_value_set_uint (value, self->priv->auto_presence);
@@ -2030,6 +2097,32 @@ tp_account_class_init (TpAccountClass *klass)
         G_PARAM_STATIC_STRINGS | G_PARAM_READABLE));
 
   /**
+   * TpAccount:uri-schemes:
+   *
+   * If the %TP_ACCOUNT_FEATURE_ADDRESSING feature has been prepared
+   * successfully, a list of additional URI schemes for which this
+   * account should be used if possible. Otherwise %NULL.
+   *
+   * For instance, a SIP or Skype account might have "tel" in this list if the
+   * user would like to use that account to call phone numbers.
+   *
+   * This list should not contain the primary URI scheme(s) for the account's
+   * protocol (for instance, "xmpp" for XMPP, or "sip" or "sips" for SIP),
+   * since it should be assumed to be useful for those schemes in any case.
+   *
+   * The notify::uri-schemes signal cannot be relied on if the Account Manager
+   * is Mission Control version 5.14.0 or older.
+   *
+   * Since: 0.21.0
+   */
+  g_object_class_install_property (object_class, PROP_URI_SCHEMES,
+      g_param_spec_boxed ("uri-schemes",
+        "URISchemes",
+        "URISchemes",
+        G_TYPE_STRV,
+        G_PARAM_STATIC_STRINGS | G_PARAM_READABLE));
+
+  /**
    * TpAccount::status-changed:
    * @account: the #TpAccount
    * @old_status: old #TpAccount:connection-status
@@ -2070,6 +2163,22 @@ tp_account_class_init (TpAccountClass *klass)
       G_SIGNAL_RUN_LAST,
       0, NULL, NULL, NULL,
       G_TYPE_NONE, 3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
+
+  /**
+   * TpAccount::avatar-changed:
+   * @self: a #TpAccount
+   *
+   * Emitted when the avatar changes. Call tp_account_get_avatar_async()
+   * to get the new avatar data.
+   *
+   * Since: 0.23.0
+   */
+  signals[AVATAR_CHANGED] = g_signal_new ("avatar-changed",
+      G_OBJECT_CLASS_TYPE (klass),
+      G_SIGNAL_RUN_LAST,
+      0, NULL, NULL, NULL,
+      G_TYPE_NONE,
+      0);
 
   proxy_class->interface = TP_IFACE_QUARK_ACCOUNT;
   proxy_class->list_features = _tp_account_list_features;
@@ -3474,18 +3583,32 @@ _tp_account_got_avatar_cb (TpProxy *proxy,
     GObject *weak_object)
 {
   GSimpleAsyncResult *result = G_SIMPLE_ASYNC_RESULT (user_data);
-  GValueArray *avatar;
-  GArray *res;
 
   if (error != NULL)
     {
       DEBUG ("Failed to get avatar: %s", error->message);
       g_simple_async_result_set_from_error (result, error);
     }
+  else if (!G_VALUE_HOLDS (out_Value, TP_STRUCT_TYPE_AVATAR))
+    {
+      DEBUG ("Avatar had wrong type: %s", G_VALUE_TYPE_NAME (out_Value));
+      g_simple_async_result_set_error (result, TP_ERROR, TP_ERROR_CONFUSED,
+          "Incorrect type for Avatar property");
+    }
   else
     {
+      GValueArray *avatar;
+      GArray *res;
+      const GArray *tmp;
+      const gchar *mime_type;
+
       avatar = g_value_get_boxed (out_Value);
-      res = g_value_dup_boxed (g_value_array_get_nth (avatar, 0));
+      tp_value_array_unpack (avatar, 2,
+          &tmp,
+          &mime_type);
+
+      res = g_array_sized_new (FALSE, FALSE, 1, tmp->len);
+      g_array_append_vals (res, tmp->data, tmp->len);
       g_simple_async_result_set_op_res_gpointer (result, res,
           (GDestroyNotify) g_array_unref);
     }
@@ -3558,6 +3681,7 @@ tp_account_get_avatar_finish (TpAccount *account,
  * Returns: the same thing as tp_proxy_is_prepared()
  *
  * Since: 0.9.0
+ * Deprecated: since 0.23.0, use tp_proxy_is_prepared() instead.
  */
 gboolean
 tp_account_is_prepared (TpAccount *account,
@@ -4225,18 +4349,9 @@ tp_account_prepare_addressing_async (TpProxy *proxy,
  * tp_account_get_uri_schemes:
  * @self: a #TpAccount
  *
- * If the %TP_ACCOUNT_FEATURE_ADDRESSING feature has been prepared
- * successfully, return a list of additional URI schemes for which this
- * account should be used if possible. Otherwise return %NULL.
+ * Return the #TpAccount:uri-schemes property
  *
- * For instance, a SIP or Skype account might have "tel" in this list if the
- * user would like to use that account to call phone numbers.
- *
- * This list should not contain the primary URI scheme(s) for the account's
- * protocol (for instance, "xmpp" for XMPP, or "sip" or "sips" for SIP),
- * since it should be assumed to be useful for those schemes in any case.
- *
- * Returns: (transfer none): a list of URI schemes, or %NULL
+ * Returns: (transfer none): the value of #TpAccount:uri_schemes property
  *
  * Since: 0.13.8
  */

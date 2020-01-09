@@ -31,6 +31,7 @@
 
 #include "config.h"
 
+#include <glib/gstdio.h>
 #include <gobject/gvaluecollector.h>
 
 #ifdef HAVE_GIO_UNIX
@@ -43,6 +44,7 @@
 #include <telepathy-glib/util-internal.h>
 #include <telepathy-glib/util.h>
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -829,6 +831,7 @@ tp_strv_contains (const gchar * const *strv,
  * 0 if the key was not found or could not be parsed.
  *
  * Since: 0.7.31
+ * Deprecated: Since 0.21.0. Use g_key_file_get_int64() instead.
  */
 gint64
 tp_g_key_file_get_int64 (GKeyFile *key_file,
@@ -877,6 +880,7 @@ tp_g_key_file_get_int64 (GKeyFile *key_file,
  * or 0 if the key was not found or could not be parsed.
  *
  * Since: 0.7.31
+ * Deprecated: Since 0.21.0. Use g_key_file_get_uint64() instead.
  */
 guint64
 tp_g_key_file_get_uint64 (GKeyFile *key_file,
@@ -1093,7 +1097,7 @@ _tp_quark_array_copy (const GQuark *quarks)
  *    </programlisting>
  * </example>
  *
- * Returns: a newly created #GValueArray, free with g_value_array_free.
+ * Returns: a newly created #GValueArray, free with tp_value_array_free()
  *
  * Since: 0.9.2
  */
@@ -1107,7 +1111,9 @@ tp_value_array_build (gsize length,
   va_list var_args;
   char *error = NULL;
 
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS
   arr = g_value_array_new (length);
+  G_GNUC_END_IGNORE_DEPRECATIONS
 
   va_start (var_args, type);
 
@@ -1115,7 +1121,9 @@ tp_value_array_build (gsize length,
     {
       GValue *v = arr->values + arr->n_values;
 
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       g_value_array_append (arr, NULL);
+      G_GNUC_END_IGNORE_DEPRECATIONS
 
       g_value_init (v, t);
 
@@ -1126,7 +1134,7 @@ tp_value_array_build (gsize length,
           CRITICAL ("%s", error);
           g_free (error);
 
-          g_value_array_free (arr);
+          tp_value_array_free (arr);
           va_end (var_args);
           return NULL;
         }
@@ -1184,7 +1192,9 @@ tp_value_array_unpack (GValueArray *array,
           break;
         }
 
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       value = g_value_array_get_nth (array, i);
+      G_GNUC_END_IGNORE_DEPRECATIONS
 
       G_VALUE_LCOPY (value, var_args, G_VALUE_NOCOPY_CONTENTS, &error);
       if (error != NULL)
@@ -1561,32 +1571,47 @@ _tp_quark_array_merge_valist (GArray *array,
 #ifdef HAVE_GIO_UNIX
 GSocketAddress *
 _tp_create_temp_unix_socket (GSocketService *service,
+    gchar **tmpdir,
     GError **error)
 {
-  guint i;
   GSocketAddress *address;
+  gchar *dir = g_dir_make_tmp ("tp-glib-socket.XXXXXX", error);
+  gchar *name;
 
-  /* why doesn't GIO provide a method to create a socket we don't
-   * care about? Iterate until we find a valid temporary name.
-   *
-   * Try a maximum of 10 times to get a socket */
-  for (i = 0; i < 10; i++)
+  if (dir == NULL)
+    return NULL;
+
+  if (g_chmod (dir, 0700) != 0)
     {
-      address = g_unix_socket_address_new (tmpnam (NULL));
+      int e = errno;
 
-      g_clear_error (error);
-
-      if (g_socket_listener_add_address (
-            G_SOCKET_LISTENER (service),
-            address, G_SOCKET_TYPE_STREAM,
-            G_SOCKET_PROTOCOL_DEFAULT,
-            NULL, NULL, error))
-        return address;
-      else
-        g_object_unref (address);
+      g_set_error (error, G_IO_ERROR, g_io_error_from_errno (e),
+          "unable to set permissions of %s to 0700: %s", dir,
+          g_strerror (e));
+      g_free (dir);
+      return NULL;
     }
 
-  return NULL;
+  name = g_build_filename (dir, "s", NULL);
+  address = g_unix_socket_address_new (name);
+  g_free (name);
+
+  if (!g_socket_listener_add_address (G_SOCKET_LISTENER (service),
+        address, G_SOCKET_TYPE_STREAM,
+        G_SOCKET_PROTOCOL_DEFAULT,
+        NULL, NULL, error))
+    {
+      g_object_unref (address);
+      g_free (dir);
+      return NULL;
+    }
+
+  if (tmpdir != NULL)
+    *tmpdir = dir;
+  else
+    g_free (dir);
+
+  return address;
 }
 #endif /* HAVE_GIO_UNIX */
 
@@ -1743,6 +1768,32 @@ _tp_enum_to_nick (
     return enum_value->value_nick;
   else
     return NULL;
+}
+
+/*
+ * _tp_enum_to_nick_nonnull:
+ *
+ * The same as _tp_enum_to_nick, but always returns non-NULL.
+ */
+const gchar *
+_tp_enum_to_nick_nonnull (
+    GType enum_type,
+    gint value)
+{
+  GEnumClass *klass = g_type_class_ref (enum_type);
+  GEnumValue *enum_value;
+
+  g_return_val_if_fail (klass != NULL, "(incorrect class)");
+
+  enum_value = g_enum_get_value (klass, value);
+  g_type_class_unref (klass);
+
+  if (enum_value == NULL)
+    return "(out-of-range value)";
+  else if (enum_value->value_nick == NULL)
+    return "(value with no nickname)";
+  else
+    return enum_value->value_nick;
 }
 
 gboolean
@@ -2072,4 +2123,20 @@ _tp_g_list_copy_deep (GList *list,
     }
 
   return ret;
+}
+
+/**
+ * tp_value_array_free:
+ * @va: a #GValueArray
+ *
+ * Free @va. This is exactly the same as g_value_array_free(), but does not
+ * provoke deprecation warnings from GLib when used in conjunction with
+ * tp_value_array_build() and tp_value_array_unpack().
+ *
+ * Since: 0.23.0
+ */
+void
+(tp_value_array_free) (GValueArray *va)
+{
+  _tp_value_array_free_inline (va);
 }

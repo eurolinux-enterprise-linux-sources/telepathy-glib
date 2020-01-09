@@ -1,4 +1,4 @@
-AC_PREREQ([2.59])
+AC_PREREQ([2.60])
 
 # Making releases:
 #   set the new version number:
@@ -10,8 +10,8 @@ AC_PREREQ([2.59])
 #   set nano_version to 1
 
 m4_define([tp_glib_major_version], [0])
-m4_define([tp_glib_minor_version], [20])
-m4_define([tp_glib_micro_version], [4])
+m4_define([tp_glib_minor_version], [24])
+m4_define([tp_glib_micro_version], [0])
 m4_define([tp_glib_nano_version], [0])
 
 # If library source has changed since last release, increment revision
@@ -26,9 +26,9 @@ m4_define([tp_glib_nano_version], [0])
 # (we don't guarantee that we won't add ABI then remove it again, if it was
 # never seen in a release).
 
-m4_define([tp_glib_lt_current], [78])
-m4_define([tp_glib_lt_revision], [4])
-m4_define([tp_glib_lt_age], [78])
+m4_define([tp_glib_lt_current], [84])
+m4_define([tp_glib_lt_revision], [1])
+m4_define([tp_glib_lt_age], [84])
 
 # Some magic
 m4_define([tp_glib_base_version],
@@ -41,8 +41,9 @@ AC_INIT([Telepathy-GLib], [tp_glib_version],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=Telepathy&component=tp-glib])
 
 AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_AUX_DIR([build-aux])
 
-AM_INIT_AUTOMAKE([1.11 -Wno-portability])
+AM_INIT_AUTOMAKE([1.11 -Wno-portability subdir-objects])
 AC_CONFIG_HEADERS(config.h)
 
 AM_SILENT_RULES
@@ -53,7 +54,7 @@ AC_PROG_CC_STDC
 AC_PROG_INSTALL
 AC_PROG_LIBTOOL
 AM_PROG_LIBTOOL
-AM_PROG_MKDIR_P
+AC_PROG_MKDIR_P
 # pkg-config 0.21 adds CFLAGS from Requires.private, which we need
 PKG_PROG_PKG_CONFIG([0.21])
 
@@ -199,11 +200,10 @@ AC_SUBST(tpglibtestsdir)
 
 dnl Check for Glib
 PKG_CHECK_MODULES(GLIB,
-  [glib-2.0 >= 2.32.0, gobject-2.0 >= 2.32.0, gio-2.0 >= 2.32.0])
+  [glib-2.0 >= 2.36, gobject-2.0 >= 2.36, gio-2.0 >= 2.36])
 
-dnl MIN_REQUIRED must stay to 2.30 because of GValueArray
-AC_DEFINE([GLIB_VERSION_MIN_REQUIRED], [GLIB_VERSION_2_30], [Ignore post 2.32 deprecations])
-AC_DEFINE([GLIB_VERSION_MAX_ALLOWED], [GLIB_VERSION_2_32], [Prevent post 2.32 APIs])
+AC_DEFINE([GLIB_VERSION_MIN_REQUIRED], [GLIB_VERSION_2_36], [Ignore post 2.36 deprecations])
+AC_DEFINE([GLIB_VERSION_MAX_ALLOWED], [GLIB_VERSION_2_36], [Prevent post 2.36 APIs])
 
 dnl Check for GIO-Unix
 PKG_CHECK_MODULES(GIO_UNIX, [gio-unix-2.0],
@@ -297,7 +297,7 @@ CXXFLAGS="$GLIB_CFLAGS"
 AC_LINK_IFELSE(
   [AC_LANG_PROGRAM(
      [[#include <gio/gio.h>]],
-     [[g_type_init (); g_object_unref (g_file_new_for_path ("/"));]])
+     [[g_object_unref (g_file_new_for_path ("/"));]])
   ],
   [tp_cxx_works=yes],
   [tp_cxx_works=no])

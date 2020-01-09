@@ -600,9 +600,15 @@ tp_connection_manager_got_parameters (TpConnectionManager *self,
 
   if (error != NULL)
     {
-      DEBUG ("Error getting params for %s, skipping it", protocol);
+      DEBUG ("%s/%s: error from legacy GetParameters, skipping protocol: "
+          "%s #%d: %s",
+          self->name, protocol,
+          g_quark_to_string (error->domain), error->code, error->message);
       goto out;
     }
+
+  DEBUG ("%s/%s: legacy GetParameters() returned %d parameters",
+      self->name, protocol, parameters->len);
 
   immutables = tp_asv_new (
       TP_PROP_PROTOCOL_PARAMETERS, TP_ARRAY_TYPE_PARAM_SPEC_LIST, parameters,
@@ -661,7 +667,10 @@ tp_connection_manager_end_introspection (TpConnectionManager *self,
 {
   tp_connection_manager_reset_introspection (self);
 
-  DEBUG ("End of introspection, info source %u", self->info_source);
+  DEBUG ("%s: end of introspection, info source %s (%d)",
+      self->name,
+      _tp_enum_to_nick_nonnull (TP_TYPE_CM_INFO_SOURCE, self->info_source),
+      self->info_source);
   g_signal_emit (self, signals[SIGNAL_GOT_INFO], 0, self->info_source);
   tp_connection_manager_ready_or_failed (self, error);
 }
@@ -722,7 +731,8 @@ tp_connection_manager_get_all_cb (TpProxy *proxy,
           GHashTableIter iter;
           gpointer k, v;
 
-          DEBUG ("%u Protocols from D-Bus", g_hash_table_size (protocols));
+          DEBUG ("%s: %u Protocols from GetAll()",
+              self->name, g_hash_table_size (protocols));
 
           g_assert (self->priv->found_protocols == NULL);
           self->priv->found_protocols = g_hash_table_new_full (g_str_hash,
@@ -755,10 +765,17 @@ tp_connection_manager_get_all_cb (TpProxy *proxy,
                 }
             }
         }
+      else
+        {
+          DEBUG ("%s: no Protocols property in GetAll() (old CM?)",
+              self->name);
+        }
     }
   else
     {
-      DEBUG ("Ignoring error getting ConnectionManager properties: %s %d: %s",
+      DEBUG ("%s: ignoring error getting CM properties (old CM?): "
+          "%s %d: %s",
+          self->name,
           g_quark_to_string (error->domain), error->code, error->message);
     }
 
@@ -776,9 +793,11 @@ tp_connection_manager_continue_introspection (TpConnectionManager *self)
 {
   gchar *next_protocol;
 
+  DEBUG ("%s", self->name);
+
   if (self->priv->introspection_step == INTROSPECT_IDLE)
     {
-      DEBUG ("calling GetAll on CM");
+      DEBUG ("%s: calling GetAll on CM", self->name);
       self->priv->introspection_step = INTROSPECT_GETTING_PROPERTIES;
       self->priv->introspection_call = tp_cli_dbus_properties_call_get_all (
           self, -1, TP_IFACE_CONNECTION_MANAGER,
@@ -792,7 +811,7 @@ tp_connection_manager_continue_introspection (TpConnectionManager *self)
 
       if (self->priv->found_protocols == NULL)
         {
-          DEBUG ("calling ListProtocols on CM");
+          DEBUG ("%s: calling legacy ListProtocols on CM", self->name);
           self->priv->introspection_step = INTROSPECT_LISTING_PROTOCOLS;
           self->priv->introspection_call =
             tp_cli_connection_manager_call_list_protocols (self, -1,
@@ -832,6 +851,8 @@ tp_connection_manager_continue_introspection (TpConnectionManager *self)
       next_protocol = g_ptr_array_remove_index_fast (
           self->priv->pending_protocols, 0);
       self->priv->introspection_step = INTROSPECT_GETTING_PARAMETERS;
+      DEBUG ("%s/%s: calling legacy ListProtocols",
+          self->name, next_protocol);
       self->priv->introspection_call =
           tp_cli_connection_manager_call_get_parameters (self, -1,
               next_protocol, tp_connection_manager_got_parameters,
@@ -854,12 +875,16 @@ tp_connection_manager_got_protocols (TpConnectionManager *self,
 
   if (error != NULL)
     {
-      DEBUG ("Failed: %s", error->message);
+      DEBUG ("%s: legacy GetProtocols() failed: %s #%d: %s",
+          self->name,
+          g_quark_to_string (error->domain), error->code, error->message);
 
       if (!self->running)
         {
           /* ListProtocols failed to start it - we assume this is because
            * activation failed */
+          DEBUG ("%s: ListProtocols didn't start it: activation failure?",
+              self->name);
           g_signal_emit (self, signals[SIGNAL_EXITED], 0);
         }
 
@@ -870,7 +895,7 @@ tp_connection_manager_got_protocols (TpConnectionManager *self,
   for (iter = protocols; *iter != NULL; iter++)
     i++;
 
-  DEBUG ("Succeeded with %u protocols", i);
+  DEBUG ("%s: legacy GetProtocols() returned %u protocols", self->name, i);
 
   g_assert (self->priv->found_protocols == NULL);
   self->priv->found_protocols = g_hash_table_new_full (g_str_hash,
@@ -883,7 +908,7 @@ tp_connection_manager_got_protocols (TpConnectionManager *self,
     {
       if (!tp_connection_manager_check_valid_protocol_name (*iter, NULL))
         {
-          DEBUG ("Protocol %s has an invalid name", *iter);
+          DEBUG ("%s: protocol %s has an invalid name", self->name, *iter);
           continue;
         }
 
@@ -943,13 +968,14 @@ tp_connection_manager_name_owner_changed_cb (TpDBusDaemon *bus,
         {
           if (self->priv->retried_introspection)
             {
-              DEBUG ("%s, twice: assuming fatal and not retrying", e.message);
+              DEBUG ("%s: %s, twice: assuming fatal and not retrying",
+                  self->name, e.message);
               tp_connection_manager_end_introspection (self, &e);
             }
           else
             {
               self->priv->retried_introspection = TRUE;
-              DEBUG ("%s: retrying", e.message);
+              DEBUG ("%s: %s: retrying", self->name, e.message);
               tp_connection_manager_reset_introspection (self);
               tp_connection_manager_continue_introspection (self);
             }
@@ -959,6 +985,7 @@ tp_connection_manager_name_owner_changed_cb (TpDBusDaemon *bus,
        * state, so we didn't *exit* as such. */
       if (self->priv->name_known)
         {
+          DEBUG ("%s: exited", self->name);
           g_signal_emit (self, signals[SIGNAL_EXITED], 0);
         }
     }
@@ -967,8 +994,14 @@ tp_connection_manager_name_owner_changed_cb (TpDBusDaemon *bus,
       /* represent an atomic change of ownership as if it was an exit and
        * restart */
       if (self->running)
-        tp_connection_manager_name_owner_changed_cb (bus, name, "", self);
+        {
+          DEBUG ("%s: atomic name owner change, behaving as if it exited",
+              self->name);
+          tp_connection_manager_name_owner_changed_cb (bus, name, "", self);
+          DEBUG ("%s: back to normal handling", self->name);
+        }
 
+      DEBUG ("%s: is now running", self->name);
       self->running = TRUE;
       g_signal_emit (self, signals[SIGNAL_ACTIVATED], 0);
 
@@ -980,6 +1013,9 @@ tp_connection_manager_name_owner_changed_cb (TpDBusDaemon *bus,
   /* if we haven't started introspecting yet, now would be a good time */
   if (!self->priv->name_known)
     {
+      DEBUG ("%s: starting introspection now we know the name owner",
+          self->name);
+
       g_assert (self->priv->manager_file_read_idle_id == 0);
 
       /* now we know whether we're running or not, we can try reading the
@@ -989,6 +1025,9 @@ tp_connection_manager_name_owner_changed_cb (TpDBusDaemon *bus,
 
       if (self->priv->want_activation && self->priv->introspect_idle_id == 0)
         {
+          DEBUG ("%s: forcing introspection for its side-effect of "
+              "activation",
+              self->name);
           /* ... but if activation was requested, we should also do that */
           self->priv->introspect_idle_id = g_idle_add (
               tp_connection_manager_idle_introspect, self);
@@ -1087,14 +1126,16 @@ tp_connection_manager_idle_read_manager_file (gpointer data)
           GHashTable *protocols;
           GStrv interfaces = NULL;
 
-          DEBUG ("Reading %s", self->priv->manager_file);
+          DEBUG ("%s: reading %s", self->name, self->priv->manager_file);
 
           if (!tp_connection_manager_read_file (
               tp_proxy_get_dbus_daemon (self),
               self->name, self->priv->manager_file, &protocols, &interfaces,
               &error))
             {
-              DEBUG ("Failed to load %s: %s", self->priv->manager_file,
+              DEBUG ("%s: failed to load %s: %s #%d: %s",
+                  self->name, self->priv->manager_file,
+                  g_quark_to_string (error->domain), error->code,
                   error->message);
               g_error_free (error);
               error = NULL;
@@ -1108,7 +1149,7 @@ tp_connection_manager_idle_read_manager_file (gpointer data)
               self->priv->protocol_objects = protocols;
               tp_connection_manager_update_protocol_structs (self);
 
-              DEBUG ("Got info from file");
+              DEBUG ("%s: got info from file", self->name);
               /* previously it must have been NONE */
               self->info_source = TP_CM_INFO_SOURCE_FILE;
 
@@ -1126,15 +1167,21 @@ tp_connection_manager_idle_read_manager_file (gpointer data)
 
       if (self->priv->introspect_idle_id == 0)
         {
-          DEBUG ("no .manager file or failed to parse it, trying to activate "
-              "CM instead");
+          DEBUG ("%s: no .manager file or failed to parse it, trying to "
+              "activate CM instead",
+              self->name);
           tp_connection_manager_idle_introspect (self);
         }
       else
         {
-          DEBUG ("no .manager file, but will activate CM soon anyway");
+          DEBUG ("%s: no .manager file, but will activate CM soon anyway",
+              self->name);
         }
-      /* else we're going to introspect soon anyway */
+    }
+  else
+    {
+      DEBUG ("%s: not reading manager file, %u protocols already discovered",
+          self->name, g_hash_table_size (self->priv->protocol_objects));
     }
 
 out:
@@ -1653,18 +1700,26 @@ tp_connection_manager_activate (TpConnectionManager *self)
     {
       if (self->running)
         {
-          DEBUG ("already running");
+          DEBUG ("%s: already running", self->name);
           return FALSE;
         }
 
       if (self->priv->introspect_idle_id == 0)
-        self->priv->introspect_idle_id = g_idle_add (
-            tp_connection_manager_idle_introspect, self);
+        {
+          DEBUG ("%s: adding idle introspection", self->name);
+          self->priv->introspect_idle_id = g_idle_add (
+              tp_connection_manager_idle_introspect, self);
+        }
+      else
+        {
+          DEBUG ("%s: idle introspection already added", self->name);
+        }
     }
   else
     {
       /* we'll activate later, when we know properly whether we're running */
-      DEBUG ("queueing activation for when we know what's going on");
+      DEBUG ("%s: queueing activation for when we know what's going on",
+          self->name);
       self->priv->want_activation = TRUE;
     }
 
@@ -1734,35 +1789,62 @@ list_context_unref (_ListContext *list_context)
 }
 
 static void
-tp_list_connection_managers_cm_prepared (GObject *source G_GNUC_UNUSED,
-    GAsyncResult *result G_GNUC_UNUSED,
+all_cms_prepared (_ListContext *list_context)
+{
+  TpConnectionManager **cms;
+  guint n_cms = list_context->arr->len;
+
+  DEBUG ("We've prepared as many as possible of %u CMs", n_cms);
+
+  g_assert (list_context->callback != NULL);
+
+  g_ptr_array_add (list_context->arr, NULL);
+  cms = (TpConnectionManager **) list_context->arr->pdata;
+
+  /* If we never had a weak object anyway, call the callback.
+   * If we had a weak object when we started, only call the callback
+   * if it hasn't died yet. */
+  if (!list_context->had_weak_object || list_context->weak_object != NULL)
+    {
+      list_context->callback (cms, n_cms, NULL, list_context->user_data,
+          list_context->weak_object);
+    }
+
+  list_context->callback = NULL;
+}
+
+static void
+tp_list_connection_managers_cm_prepared (GObject *source,
+    GAsyncResult *result,
     gpointer user_data)
 {
   _ListContext *list_context = user_data;
+  GError *error = NULL;
+  TpConnectionManager *cm = TP_CONNECTION_MANAGER (source);
 
-  /* ignore the result here - all we guarantee is that the CM is ready
-   * *if possible* */
-
-  if ((--list_context->cms_to_ready) == 0)
+  if (tp_proxy_prepare_finish (source, result, &error))
     {
-      TpConnectionManager **cms;
-      guint n_cms = list_context->arr->len;
+      DEBUG ("%s: prepared", cm->name);
+    }
+  else
+    {
+      DEBUG ("%s: failed to prepare, continuing: %s #%d: %s", cm->name,
+          g_quark_to_string (error->domain), error->code, error->message);
+      g_clear_error (&error);
+      /* other than that, ignore it - all we guarantee is that
+       * the CM is ready *if possible* */
+    }
 
-      g_assert (list_context->callback != NULL);
+  list_context->cms_to_ready--;
 
-      g_ptr_array_add (list_context->arr, NULL);
-      cms = (TpConnectionManager **) list_context->arr->pdata;
-
-      /* If we never had a weak object anyway, call the callback.
-       * If we had a weak object when we started, only call the callback
-       * if it hasn't died yet. */
-      if (!list_context->had_weak_object || list_context->weak_object != NULL)
-        {
-          list_context->callback (cms, n_cms, NULL, list_context->user_data,
-              list_context->weak_object);
-        }
-
-      list_context->callback = NULL;
+  if (list_context->cms_to_ready == 0)
+    {
+      all_cms_prepared (list_context);
+    }
+  else
+    {
+      DEBUG ("We still need to prepare %" G_GSIZE_FORMAT " CM(s)",
+          list_context->cms_to_ready);
     }
 
   list_context_unref (list_context);
@@ -1777,16 +1859,26 @@ tp_list_connection_managers_got_names (TpDBusDaemon *bus_daemon,
 {
   _ListContext *list_context = user_data;
   const gchar * const *name_iter;
+  const gchar *method;
+
+  if (list_context->getting_names)
+    method = "ListNames";
+  else
+    method = "ListActivatableNames";
 
   /* The TpProxy APIs we use guarantee this */
   g_assert (weak_object != NULL || !list_context->had_weak_object);
 
   if (error != NULL)
     {
+      DEBUG ("%s failed: %s #%d: %s", method,
+          g_quark_to_string (error->domain), error->code, error->message);
       list_context->callback (NULL, 0, error, list_context->user_data,
           weak_object);
       return;
     }
+
+  DEBUG ("%s succeeded", method);
 
   for (name_iter = names; name_iter != NULL && *name_iter != NULL; name_iter++)
     {
@@ -1798,6 +1890,7 @@ tp_list_connection_managers_got_names (TpDBusDaemon *bus_daemon,
         continue;
 
       name = *name_iter + list_context->base_len;
+      DEBUG ("  found CM: %s", name);
 
       if (g_hash_table_lookup (list_context->table, name) == NULL)
         {
@@ -1822,16 +1915,27 @@ tp_list_connection_managers_got_names (TpDBusDaemon *bus_daemon,
       list_context->cms_to_ready = list_context->arr->len;
       list_context->refcount += list_context->cms_to_ready;
 
+      DEBUG ("Total of %" G_GSIZE_FORMAT " CMs to be prepared",
+          list_context->cms_to_ready);
+
+      if (list_context->cms_to_ready == 0)
+        {
+          all_cms_prepared (list_context);
+          return;
+        }
+
       for (i = 0; i < list_context->cms_to_ready; i++)
         {
           TpConnectionManager *cm = g_ptr_array_index (list_context->arr, i);
 
+          DEBUG ("  preparing %s", cm->name);
           tp_proxy_prepare_async (cm, NULL,
               tp_list_connection_managers_cm_prepared, list_context);
         }
     }
   else
     {
+      DEBUG ("Calling ListNames");
       list_context->getting_names = TRUE;
       list_context->refcount++;
       tp_dbus_daemon_list_names (bus_daemon, 2000,
@@ -1892,6 +1996,7 @@ tp_list_connection_managers (TpDBusDaemon *bus_daemon,
       g_object_add_weak_pointer (weak_object, &list_context->weak_object);
     }
 
+  DEBUG ("Calling ListActivatableNames");
   tp_dbus_daemon_list_activatable_names (bus_daemon, 2000,
       tp_list_connection_managers_got_names, list_context,
       (GDestroyNotify) list_context_unref, weak_object);
@@ -2505,6 +2610,28 @@ tp_connection_manager_param_get_dbus_signature (
   g_return_val_if_fail (param != NULL, NULL);
 
   return param->dbus_signature;
+}
+
+/**
+ * tp_connection_manager_param_dup_variant_type:
+ * @param: a parameter supported by a #TpConnectionManager
+ *
+ * <!-- -->
+ *
+ * Returns: (transfer full): the #GVariantType of the parameter
+ * Since: 0.23.1
+ */
+GVariantType *
+tp_connection_manager_param_dup_variant_type (
+    const TpConnectionManagerParam *param)
+{
+  g_return_val_if_fail (param != NULL, NULL);
+
+  /* this should have been checked when we created it */
+  g_return_val_if_fail (g_variant_type_string_is_valid (param->dbus_signature),
+      NULL);
+
+  return g_variant_type_new (param->dbus_signature);
 }
 
 /**

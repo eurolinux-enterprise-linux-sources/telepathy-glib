@@ -832,7 +832,11 @@ tp_base_protocol_get_immutable_properties (TpBaseProtocol *self)
         TP_IFACE_PROTOCOL_INTERFACE_ADDRESSING, "AddressableURISchemes",
         NULL);
 
-  /* FIXME: we should add Presence properties as well */
+  if (tp_strv_contains ((const gchar * const *) self->priv->interfaces,
+          TP_IFACE_PROTOCOL_INTERFACE_PRESENCE))
+    tp_dbus_properties_mixin_fill_properties_hash ((GObject *) self, table,
+        TP_IFACE_PROTOCOL_INTERFACE_PRESENCE, "Statuses",
+        NULL);
 
   return table;
 }
@@ -960,7 +964,7 @@ protocol_prop_presence_getter (GObject *object,
             tp_base_protocol_get_statuses (self);
           GHashTable *ret = g_hash_table_new_full (
               g_str_hash, g_str_equal,
-              g_free, (GDestroyNotify) g_value_array_free);
+              g_free, (GDestroyNotify) tp_value_array_free);
 
           for (; status->name != NULL; status++)
             {

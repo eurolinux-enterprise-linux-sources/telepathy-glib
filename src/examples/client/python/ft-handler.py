@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 import sys
 
+import gi
+
 from gi.repository import GObject
 GObject.threads_init()
 
 from gi.repository import Gio
+gi.require_version('TelepathyGLib', '0.12')
 from gi.repository import TelepathyGLib
-
-import magic
 
 def usage():
     print "%s FILE" % sys.argv[0]

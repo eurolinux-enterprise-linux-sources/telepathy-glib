@@ -12,7 +12,8 @@
 #define __TP_TESTS_LIB_UTIL_H__
 
 #include <telepathy-glib/telepathy-glib.h>
-#include <telepathy-glib/base-connection.h>
+
+gint tp_tests_run_with_bus (void);
 
 TpDBusDaemon *tp_tests_dbus_daemon_dup_or_die (void);
 
@@ -69,6 +70,7 @@ GValue *_tp_create_local_socket (TpSocketAddressType address_type,
     TpSocketAccessControl access_control,
     GSocketService **service,
     gchar **unix_address,
+    gchar **unix_tmpdir,
     GError **error);
 
 void _tp_destroy_socket_control_list (gpointer data);

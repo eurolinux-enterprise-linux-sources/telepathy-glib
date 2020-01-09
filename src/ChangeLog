@@ -1,3 +1,1595 @@
+commit 2a401e6ecc6392768416a5db139cd862f942d6eb
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-03-26 15:43:35 +0000
+
+    0.24.0
+
+commit fb9e80acf4504706a9a52c9bca735362dd5411c7
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-03-26 15:42:17 +0000
+
+    Upload documentation to the 0.24.x location
+
+commit 0273bfb815ef74115d614f5e5f04e013374f7a01
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2012-10-03 09:49:33 +0100
+
+    Don't check documentation completeness in this stable branch
+
+commit d622628afac82b057fde9315cbb6e1cf022a3f3e
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2010-04-06 12:33:21 +0100
+
+    Disable warnings about deprecated functions for stable branch
+    
+    Since this is a stable branch, we're unlikely to fix uses of
+    deprecated functions, so we shouldn't warn about them.
+
+commit 97143251db33faf3ffb968120f611240e3406841
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-03-18 13:58:25 +0000
+
+    NEWS
+
+commit 164cf33347e03e3d04f013ec7f710d991825cd66
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-03-18 13:51:16 +0000
+
+    Don't leak method call results (regression in 0.23.1)
+    
+    Commit 7ffbde3f used common code for two blocks that were not actually
+    the same. dbus-glib method calls give the caller a new reference
+    to the results, whereas dbus-glib signals do not. As a result,
+    the method-call case needs to either free the results, or get them
+    freed by giving ownership to the GValueArray. I chose to give
+    ownership.
+    
+    Reviewed-by: Guillaume Desmottes
+
+commit 9cac456895857da672c73edaa45594d384f174d6
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-03-18 12:20:45 +0100
+
+    set nano flag
+
+commit 3f02fdc0fd182e5f058507f966658ac89c1cdd85
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-03-18 11:01:57 +0100
+
+    0.23.3
+
+commit bee5b30275907199e284625311bcd4fa6fc3097f
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-03-17 16:45:07 +0100
+
+    tp_list_connection_managers_async: terminate properly if there is no CM
+    
+    Fix fdo#68892.
+
+commit e8b9fc31f0f4fee539dd6248bde70c2c505a6df4
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-03-17 16:46:44 +0100
+
+    connection-manager: factor out all_cms_prepared()
+
+commit 9415b529a87ed63faa770799655c9506c86ea6b4
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-03-14 12:56:45 +0100
+
+    call-channel: pass our factory to TpCallStream objects
+    
+    Partially fix fdo#76168.
+
+commit db4715246a5ccb28dd427f467cfdd4a34b4e65ff
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-03-14 12:56:45 +0100
+
+    call-channel: pass our factory to TpCallContent objects
+    
+    Partially fix fdo#76168.
+
+commit 10259fa5d3b5dddc3b2202a36e4b6b621890fab1
+Merge: 087e104 86db955
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-03-13 15:41:20 +0100
+
+    Merge branch 'telepathy-glib-0.22'
+    
+    Conflicts:
+    	telepathy-glib/contact.c
+
+commit 86db955eede16bf794c3ba7b3355183ca11a5a17
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-03-13 15:27:00 +0100
+
+    fix file path leaks
+    
+    g_file_get_path() returns (transfer full).
+    
+    Fix fdo#76119
+
+commit 087e1043269d361b1f349b1cf123ac10506e4bbc
+Merge: e8c6823 3d96ce6
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-03-13 13:54:16 +0000
+
+    Merge branch 'telepathy-glib-0.22'
+    
+    Conflicts:
+    	NEWS
+
+commit 3d96ce6954390613bf19bf8e5cf28ab1957717f2
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-03-13 13:49:01 +0000
+
+    0.22 NEWS
+
+commit b80309ee68dc9003d6384d6932d89c1443cdc8a1
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-12-04 14:09:18 -0500
+
+    TpFileTransferChannel: Fix possible crashes, particularly with GLib 2.39
+    
+    tp_file_transfer_channel_accept_file_async() and
+    tp_file_transfer_channel_provide_file_async() operations are supposed
+    to complete as soon as the CM returns from AcceptFile or ProvideFile.
+    That means that we cannot call operation_failed() for streaming errors.
+    
+    We also have to keep a ref on self while streaming the file to
+    avoid a crash in the callback when we dereference self.
+    
+    This means that the client app cannot cancel the ongoing streaming
+    by unreffing the channel, replying on dispose calling g_cancellable_cancel().
+    It can still be doing using g_object_run_dispose() though. To make it cleaner
+    we should probably add tp_file_transfer_channel_cancel().
+    
+    The spec does not provide any way for the streaming client to inform
+    the CM and other clients about the error occured while streaming.
+    TpFileTransferChannel API does not even have a way to propagate that
+    error to the user.
+    
+    [slightly more informative commit message for the 0.22 cherry-pick -smcv]
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=72319
+
+commit d1b1f0bf72a2820ae5a51b25c7817c3005b687ab
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-03-10 17:30:44 +0000
+
+    TpProxy: finish_all_requests: don't leak copied GQueue
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=76000
+    Reviewed-by: Guillaume Desmottes
+
+commit 362dc49e04dfef23a2aaf4c2db04252a859dadde
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-03-10 16:57:50 +0000
+
+    TpContact: mime_file_written: don't leak the file's path
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=76000
+    Reviewed-by: Guillaume Desmottes
+
+commit e8c68230750766d6dc1d5594cc898f2d914c91fb
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-28 17:01:02 +0100
+
+    add tp_protocol_new_vardict()
+
+commit de7f581297e8cc50d5fe9694bbccfb7e131ee009
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-28 16:57:35 +0100
+
+    protocol: add TpProtocol:protocol-properties-vardict
+
+commit 2d8217676a5765fa580d48f37310ecc0b2c8a5f1
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-28 16:26:12 +0100
+
+    test creating a TpProtocol by passing its immutable props
+
+commit a4d1165fcd95eaadbc662c89497386545c90ca56
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-28 16:24:39 +0100
+
+    test-protocol-objects: factor out check_tp_protocol()
+
+commit 7f475bb73bb54fb635092b92343556bc4d37ed44
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-26 13:22:30 +0100
+
+    set nano version
+
+commit 0b1a67b0ce875f5a59a5f59ae8d483cfad91f9ef
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-26 11:07:15 +0100
+
+    0.23.2
+
+commit 747174e71576e91f756a3dc56dd5a4f5d59042c1
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-25 16:10:28 +0100
+
+    add tp_account_channel_request_set_initial_invitees
+
+commit bf0b1ee111621247fdd83025d02cf42ab67aba5e
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-25 15:57:33 +0100
+
+    add tp_account_channel_request_set_initial_invitee_ids()
+
+commit aa643f1836a732d0b849d465b7777ac3265ef9a4
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-25 15:45:33 +0100
+
+    add tp_account_channel_request_set_conference_initial_channels()
+
+commit 5ecb253be2a30f7bbde601aeed65f75acb7476ae
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-25 15:20:13 +0100
+
+    account-channel-request: set TargetHandleType: TP_HANDLE_TYPE_NONE if needed
+
+commit c3beedcc25d4db5eb8d70581ddf6a06eb05bb951
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-25 14:56:57 +0100
+
+    account-channel-request: factor out going_to_request()
+
+commit bc7cdedbf761fc78ab176f77c8e31376527cc9fe
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-25 14:35:42 +0100
+
+    add tp_account_channel_request_set_sms_channel()
+
+commit 6d1aed685b8860d2e0cc4d12b251d19616617819
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-25 14:20:50 +0100
+
+    add tp_account_channel_request_new_dbus_tube()
+
+commit b99443c02d20923988dc97318e6cf572e9b5e66f
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-25 12:47:18 +0100
+
+    add tp_account_channel_request_new_stream_tube()
+
+commit 410e44a648eb3bd2eb5db31a39326b01ac953eac
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-02-25 12:39:59 +0100
+
+    add tp_account_channel_request_set_file_transfer_hash()
+
+commit 8cc41d121d1579893c2c7f7cc7bc90670170380f
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2014-01-24 16:31:53 -0500
+
+    TpBaseConnection: add "account-path-suffix" property
+
+commit 5bb624f0cc23d24d13ac9dd4ff0ef9ece0abe9c2
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-02-04 14:12:32 +0000
+
+    nano version
+
+commit c7673566b0a789d5717ada3b282658fc57bcbff6
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-02-04 13:43:33 +0000
+
+    maintainer-prepare-release: do "git tag" in srcdir
+
+commit b6df2edf754dd0b5ce6971e10140b44df9e730e1
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-02-04 13:42:21 +0000
+
+    0.23.1
+
+commit 58557fc633c44c261d5e1a8c85438fa12bdf72e6
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-01-30 20:04:08 +0000
+
+    TpProtocol: fix some suspicious memory management
+    
+    It works fine as long as a preallocated GArray doesn't move its memory
+    buffer for no reason, but it's good to be obviously correct. Spotted while
+    working on the previous commit.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71093
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit bdba6fdf7804c050197db70d5840ae0f96cfe4be
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-02-04 12:51:58 +0000
+
+    tp_connection_manager_param_dup_variant_type: add
+    
+    In order for this to work, TpProtocol now ignores parameters whose
+    D-Bus signatures are not a syntactically valid single complete type.
+    
+    This is helpful for Mission Control to be able to migrate parameters
+    from untyped to typed storage - it stores parameters in terms of
+    GVariant.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71093
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+    [added (transfer full) as requested in review -smcv]
+
+commit 64e9a2cfc53c6786e0a1005f244fa7a8e635d8c7
+Merge: 640e19a bba70fc
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-01-29 12:58:38 +0000
+
+    Merge branch 'telepathy-glib-0.22'
+    
+    Conflicts:
+    	NEWS
+    	configure.ac
+
+commit bba70fce033c7b5fcc120fcfce715ec79ca1361a
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-01-29 12:55:48 +0000
+
+    nano version
+
+commit 24a16df2d64fdad5b9c3ab678eeb38af1d461b9c
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-01-29 12:14:16 +0000
+
+    release 0.22.1
+
+commit ee177171a7f6995cba2a63f4471d5be92ea5d9a3
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-01-29 11:33:32 +0000
+
+    more NEWS for 0.22
+
+commit 57a4680a76134a628d505c8326545ee5f9066f3f
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-11-12 12:44:35 +0000
+
+    examples: explicitly ask for TelepathyGLib-0.12
+    
+    TelepathyGLib-1 isn't going to be fully compatible.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=49737
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 4b17ed73b7ac11e7f971f31a36e0367493b9d639
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-01-29 11:21:52 +0000
+
+    NEWS for 0.22
+
+commit 640e19a07a39756a8c3b5b68595589679403cc43
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-01-29 11:19:36 +0000
+
+    add another bug number
+    
+    Please mention bug numbers in your commits, particularly if they're
+    for stable.
+
+commit 6649f07748ebbe9023dde13328e5a9e7dc4abd7c
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2014-01-28 13:30:51 +0000
+
+    NEWS
+
+commit 3ba76d05699f6c20ff741c14fe95c1fd3f9a7fd1
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2014-01-24 15:07:28 -0500
+
+    AccountRequest: fix doc typo
+
+commit d96df54afb4ba104165359d32f52054ab95a3f04
+Merge: e1d4f54 7717303
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-01-20 14:46:17 +0100
+
+    Merge branch 'telepathy-glib-0.22'
+
+commit 77173033efaa7c33d1badf446133c701e2ae890f
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2014-01-17 16:28:58 +0100
+
+    base-client: fix TpConnection leak
+
+commit e1d4f5439e851a8ac4585e021778c13cb1d122ed
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-11-12 12:44:35 +0000
+
+    examples: explicitly ask for TelepathyGLib-0.12
+    
+    TelepathyGLib-1 isn't going to be fully compatible.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=49737
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 91c7de4f553c17118bb2d731f085ea18f05f3e84
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-08-20 20:36:46 +0100
+
+    TpConnectionManager: add more debug for tp_list_connection_managers()
+    
+    Based on a patch by Guillaume Desmottes.
+    
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=68390
+
+commit bfef0a5bc50485ff39ab1cc9e329aee71271aa91
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-11-11 17:20:08 +0000
+
+    Enable GLib 2.36 deprecation warnings
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit e3d4c2977fbf086e7d42c77e3713e1bcddda2a9c
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-11-11 17:19:59 +0000
+
+    Stop calling g_type_init()
+    
+    It was deprecated in GLib 2.36, and we already have a hard dependency
+    on that version.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 4480d2b9f5bb72c8acf0e9f712c6f8346a174f91
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-12-04 14:09:18 -0500
+
+    TpFileTransferChannel: Fix possible crashes.
+    
+    tp_file_transfer_channel_accept_file_async() and
+    tp_file_transfer_channel_provide_file_async() operations are supposed
+    to complete as soon as the CM returns from AcceptFile or ProvideFile.
+    That means that we cannot call operation_failed() for streaming errors.
+    
+    We also have to keep a ref on self while streaming the file to
+    avoid a crash in the callback when we dereference self.
+    
+    This means that the client app cannot cancel the ongoing streaming
+    by unreffing the channel, replying on dispose calling g_cancellable_cancel().
+    It can still be doing using g_object_run_dispose() though. To make it cleaner
+    we should probably add tp_file_transfer_channel_cancel().
+    
+    The spec does not provide any way for the streaming client to inform
+    the CM and other clients about the error occured while streaming.
+    TpFileTransferChannel API does not even have a way to propagate that
+    error to the user.
+
+commit 441fed1e0828b8fc6b94bd5f66c7cb222d09ef20
+Merge: 8313306 1b28e0c
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-11-26 09:00:59 -0500
+
+    Merge branch 'telepathy-glib-0.22'
+
+commit 1b28e0ca43acec40f708d480e2824743561c5b97
+Merge: d4388c7 3c1c43c
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-11-26 09:00:43 -0500
+
+    Merge branch 'telepathy-glib-0.20' into telepathy-glib-0.22
+
+commit 3c1c43cc2a13df3d5f56e20d49c7bd136486b372
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-11-25 14:56:01 -0500
+
+    TpBaseConnectionManager: Fix critical printed each time a new connection is made
+    
+    glib 2.39.0 started to print a g_critical() message when calling
+    g_source_remove() on a source that does not exist anymore.
+
+commit 8313306834c7f294596820919a5ed52197a574be
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-10-28 14:59:57 -0400
+
+    Tests: use g_test_dbus_unset()
+    
+    Also link to https://bugzilla.gnome.org/show_bug.cgi?id=697348 to
+    explain why we still have to unset STARTER env variables.
+
+commit 1aa78d2cf4d9b44c15c5b627eef210943646e3fb
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-28 16:56:38 +0000
+
+    TpProtocol: improve debug
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit d01acacceaef93160af478f8534e00d264baba03
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-30 12:49:44 +0000
+
+    TpProtocol: add API for presence statuses
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 043d6101a4c8ad46e496fd463318979b2674ac68
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-28 16:57:05 +0000
+
+    TpProtocol: parse status specs from .manager files
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit df8c7546c913398d072c76d5aaf9fc4a00a93b4f
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-28 14:13:30 +0000
+
+    Emit a new TpProtocol's immutable properties as debug messages
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit c73bd6a29e23bdc7afa8a26be0fd6ade0065c03a
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-28 14:54:53 +0000
+
+    TpPresenceStatusSpec: be a boxed type
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 712b3b082f740d1be16b7c74ad7a457aa91947c6
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-28 14:53:04 +0000
+
+    TpPresenceStatusSpec: add some accessors
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit a7cff4b6a4801259ab9190a29f99a185b10e0962
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-28 14:52:24 +0000
+
+    TpPresenceMixin: fix indentation
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit ccd7aed489d5e3263f0fa4c2f0af4141057aa7dd
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-28 14:51:55 +0000
+
+    TpPresenceMixin: deprecate optional arguments other than "message"
+    
+    Our D-Bus API no longer supports anything else.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 1c491dae9d8f6a90b4d1398dfc8914d8f4ff20a7
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-28 13:27:03 +0000
+
+    TpProtocol: add high-level API for the Addressing interface
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit a48cf1a835d94ea6220d67883eca4071e686a4a7
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-28 13:17:22 +0000
+
+    tp_protocol_identify_account_async: add and test
+    
+    To make the test a little more interesting and a little more realistic,
+    we normalize the 'account' parameter to lower-case.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 689c4297ff8cd7cf971ba4bf46ad605a3149f6b4
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-28 13:02:13 +0000
+
+    tp_protocol_normalize_contact_async: add and test
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 9cdd0c501a3c3d919468652f1ed3fad0202cb910
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-30 12:01:38 +0000
+
+    Require GLib 2.36, for GTask
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit a47643a8ca7abf496aeb0c4f936aa995cf8f9ffc
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-30 11:59:22 +0000
+
+    _tp_protocol_parse_rcc: produce debug output
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 5db97e2ccc40795502202f404fc5a0c4cab0cb5f
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-28 12:53:10 +0000
+
+    TpProtocol: parse_default_value: take raw value as a parameter
+    
+    We previously passed the value when parsed as a string, but that
+    makes very little sense. The raw value is at least used for something
+    by the function itself, and it's better for debug messages too.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 45d958eeff097e1df862cbbbb760bf5831201642
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-22 19:11:53 +0100
+
+    inspect-cm.py: on errors, exit rather than blocking forever
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=71048
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 7ffbde3f23170ccc219ca969052efaf9c9a535bf
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-21 16:50:53 +0100
+
+    codegen: factor out copy_into_gvalue
+    
+    I needed this for TpExportable (which is still work in progress),
+    but it's already a small code reduction.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=59024
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 07e7c3d2768fe85eb2815aa93d695291565f931e
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-10-28 15:15:27 +0100
+
+    nano version
+
+commit 23949e9d81b968d8c0b9bcbb21c949cf246c22f7
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-10-28 15:05:52 +0100
+
+    util.h: define tp_value_array_free if version is at least 0.24
+
+commit c20140663f240a922dc882d90d8d9a30818c9747
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-10-28 14:52:06 +0100
+
+    util.h: remove comment triggering the UNRELEASED check
+    
+    Having 'UNRELEASED' in a source file makes the release checker unhappy.
+
+commit bd8cf9856f1a95ef971d4d5f5b0b051baa2eee8d
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-10-28 14:40:45 +0100
+
+    fix spurious.service EXTRA_DIST path
+
+commit a819c09df6e9123b0bc5213f9ea99e1e9df61500
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-10-28 14:40:29 +0100
+
+    util.h: replace _TP_AVAILABLE_IN_UNRELEASED
+
+commit 587b16ca92e5342a8685a2b391a84afc8977c458
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-10-28 14:39:56 +0100
+
+    define _TP_AVAILABLE_IN_0_24
+    
+    _TP_DEPRECATED_IN_0_24 was already defined but not this one.
+
+commit 60cd45c04371390abe58bab9d8917704057cca9e
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-10-28 13:00:16 +0100
+
+    0.23.0
+
+commit 0615514fb03e88497e4f0a2e19418da2632294ff
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-16 15:33:07 +0100
+
+    README: no API guarantees on development branches
+
+commit ed4a1251f52abc801a4cbad5f9f464f51819a78b
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-15 13:22:19 +0100
+
+    Generate code for newly-stable interfaces
+
+commit 4868017daf708049102ee33618a615f96f4adbc6
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-10-28 12:05:36 +0100
+
+    spec 0.27.3
+
+commit c38e41c0ae63ca6082381981bb7c71a14a7e8f94
+Merge: 79acc09 d4388c7
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-10-24 14:54:32 +0200
+
+    Merge branch 'telepathy-glib-0.22'
+
+commit d4388c7c1fedb1e91b99075cd6b15b5cf573a302
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-10-24 14:38:45 +0200
+
+    channel-group: don't crash if no message has been provided
+
+commit 79acc094fb8d0136641022ae7e19e401e7aec8e5
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-10-23 14:55:10 +0200
+
+    add TpAccount::avatar-changed signal
+    
+    Fix https://bugs.freedesktop.org/show_bug.cgi?id=52938
+
+commit 159b18dd5af2f618a5f5571fed870e65ccf110d9
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-10-23 12:44:35 +0200
+
+    simple-account: claim that we support Avatar
+
+commit dd8c765c0dbc080e408cadaf1de1cccafd938948
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-10-23 11:12:35 +0200
+
+    simple-account: add test API to change the avatar
+
+commit 69be1c1cc0a328905a7df44f44f3e56d213db5af
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-02 16:49:48 +0100
+
+    Put Autoconf, Automake, Libtool droppings in /build-aux
+    
+    Equivalent to MC commit c3cba93.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=70045
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 8fb03e86047fb5527da95288e3363f89a1115553
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-02 16:48:43 +0100
+
+    Use subdir-objects (compile a/b.c to a/b.lo, not ./b.lo)
+    
+    Automake 2 will make this the default, and 1.14 warns about not
+    using it. Equivalent to MC commit 1f11065.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=70045
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit e4de996122b9559d03fabe2f3d3a1b51d29ffecc
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-02 16:47:19 +0100
+
+    Use MKDIR_P instead of deprecated mkdir_p
+    
+    In theory, AC_PROG_MKDIR_P only sets MKDIR_P, although for now it
+    also sets the deprecated mkdir_p for compatibility with AM_PROG_MKDIR_P.
+    
+    Similar to MC commit 04dd9b4.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=70045
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 7b6e496317a332b81fb079256f7995cf082b5c57
+Merge: e7b9ae3 96cfbd0
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-02 16:44:31 +0100
+
+    Merge branch 'telepathy-glib-0.22'
+    
+    Conflicts:
+    	NEWS
+    	configure.ac
+
+commit 96cfbd0e8401ab06b729cfa5b092d5939899dc6b
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-02 15:02:31 +0100
+
+    nano version
+
+commit e7b9ae33a0075541aa2f2376c2254ea0282920d7
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-01 17:09:02 +0100
+
+    TpContact: improve debug info for GetContactAttributes
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=70010
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 2ab17fc417761a6595abf02bd3fd6afd10a7853c
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-01 17:08:35 +0100
+
+    contact_avatar_retrieved: improve debug
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=70010
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 8912df6d612320dcb2ffda4fb43e995ef08aed9a
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-01 16:25:49 +0100
+
+    tp_contact_set_attributes: don't warn on genuinely absent interfaces
+    
+    The warning message says something like "... supposedly implements
+    Contacts and Aliasing" but we don't actually check that the connection
+    claims to implement Aliasing (in either its ContactAttributeInterfaces
+    or Interfaces). SimplePresence has the same bug.
+    
+    The Mission Control regression tests trigger this, since they
+    include some simulated connections with small subsets of interfaces.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=68149
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 0f5f605ab1217e008174f80ab4518e8464f3bc94
+Merge: 8e83a1c fcfa097
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-02 14:52:58 +0100
+
+    Merge branch 'telepathy-glib-0.22' (early part) into HEAD
+
+commit ab5cef9789cb51cccd44aacbed80494a9379831e
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-02 14:31:44 +0100
+
+    0.22.0
+
+commit fcfa0973c74c9d03020b6ea8c42a0362ccff791e
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-10-01 17:08:00 +0100
+
+    TpContact: avoid a race condition in avatar handling
+    
+    We have to remember the avatar token synchronously, before we start
+    async-saving the cached file, so that we can't get into this
+    situation:
+    
+        my avatar is token "A", bytes "AAAA..."
+        my avatar changes to token "B", bytes "BBBB..."
+        we start saving the file /.../B
+        my avatar changes to token "C", bytes "CCCC..."
+        saving the file /.../B finishes
+        change-notification announces that my avatar has changed to "B"
+    
+    which is particularly problematic for Mission Control.
+    
+    Regression in 0.21.2 (fd.o #63402).
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=70010
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 8e83a1cbeccea3adb0102f196d2a9f6f3362a2f1
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-09-27 15:16:10 +0200
+
+    deprecate tp_account(_manager)_is_prepared for 0.24
+
+commit f36f3a56ede1eb4350324b13250a449c4d847566
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-09-27 15:15:52 +0200
+
+    define _TP_DEPRECATED_IN_0_24(_FOR)
+
+commit 3f5dffa86e4890c8440eb7a0e3d328bdacf70fdc
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-09-27 15:11:35 +0200
+
+    deprecate tp_account_manager_is_prepared()
+    
+    We removed it in 1.0
+
+commit 0bce763db1a3237e6ff216daca3244585f69811e
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-09-27 15:11:23 +0200
+
+    stop using tp_account_manager_is_prepared()
+
+commit 419de7023bc42c1c5fa7cab3a9bea7e62869d671
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-09-27 15:08:04 +0200
+
+    deprecate tp_account_is_prepared()
+    
+    It's obsolete since a while and we removed it in 1.0.
+
+commit 523dca7d96d328a92c940be5cb4550e8d72cef6d
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-09-27 15:07:50 +0200
+
+    stop using tp_account_is_prepared()
+
+commit a02af787eab20a08a678a215c917b022c2ee6f8f
+Merge: 31d338b 05c0077
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-26 16:32:42 +0100
+
+    Merge branch 'telepathy-glib-0.22'
+
+commit 05c0077c29a05d375ef543bc329ced29cb0259f2
+Merge: b5c43a8 a211090
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-26 16:32:32 +0100
+
+    Merge branch 'telepathy-glib-0.20' into telepathy-glib-0.22
+    
+    Conflicts:
+    	NEWS
+
+commit a211090400176d2d433f69a2e38f9c1356a3abda
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-26 16:32:06 +0100
+
+    NEWS for 0.20.x
+
+commit bf13f5c477d4963e6231feefde58099e72cfb4f5
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-26 14:22:25 +0100
+
+    Account: don't crash if a CM returns a non-(ays) Avatar
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=69849
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+
+commit 31d338bb47e46ee52347cc30622f57fbe72405ba
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-26 15:27:43 +0100
+
+    Bump GLib deprecation-cleanness to 2.34
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=69849
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+
+commit 64d0037d0a2692d692b2b4f0a7a28d01fbfc5bf8
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-26 14:38:02 +0100
+
+    Suppress remaining GValueArray deprecation warnings
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=69849
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+
+commit b29452b531d9edadeb5558697c58c35ecf2f44c2
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-26 14:37:41 +0100
+
+    Use tp_value_array_free instead of g_value_array_free
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=69849
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+
+commit b8b0af6611ffabc84ad992697e2ae6c87e3483d8
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-26 15:05:04 +0100
+
+    tp_value_array_free: add
+    
+    This lets connection managers and other Telepathy modules free the
+    result of tp_value_array_build() without deprecation warnings.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=69849
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+
+commit aa407653e274480ae63b21017869e07de3a1aa4e
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-26 14:28:40 +0100
+
+    Make more use of tp_value_array_unpack, tp_value_array_build
+    
+    As well as being less code, they're not flagged as deprecated.
+    
+    This requires a bit of extra copying, because there's no
+    tp_value_array_unpack_dup() or tp_value_array_build_take(), but
+    it seems worth it.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=69849
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+
+commit e6ac4848a0e613087b024af9f4c21fec3ee509ef
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-26 14:23:21 +0100
+
+    glib-client-gen.py: ignore GValueArray deprecation warnings
+    
+    Yes we know we have GValueArrays.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=69849
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+
+commit e574b30a5e0b884838a6b04526528490dfc5ce91
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-26 14:22:25 +0100
+
+    Account: don't crash if a CM returns a non-(ays) Avatar
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=69849
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+
+commit 03e2bb3d09b527c9144c3186d2f0f9aa7113aac9
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-26 15:34:14 +0100
+
+    0.24 branch
+
+commit 5765148158effd59f99976b5d6c59d08a3117ac7
+Merge: dea8df9 b5c43a8
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-26 15:26:12 +0100
+
+    Merge branch 'telepathy-glib-0.22', rejecting the changes
+
+commit b5c43a86d5d4301a8876db293472b6217ef9a016
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-26 15:26:04 +0100
+
+    Upload documentation to the 0.22.x location
+
+commit cccddc75ed3dfcc74b5aac920c652f49d656f171
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2012-10-03 09:49:33 +0100
+
+    Don't check documentation completeness in this stable branch
+
+commit 5e6b1349960e4983afca1630084daac94a544db8
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2010-04-06 12:33:21 +0100
+
+    Disable warnings about deprecated functions for stable branch
+    
+    Since this is a stable branch, we're unlikely to fix uses of
+    deprecated functions, so we shouldn't warn about them.
+
+commit 267bbbb6fe16b5d0e30f1dc446d93d9f833bc918
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-24 14:03:06 +0100
+
+    TpConnection: don't crash if a broken CM has no Groups property
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54500
+
+commit dea8df907dfd435809706f54e2ad39db86576a93
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-09-26 15:55:09 +0200
+
+    simple-account: set 'parameters' as writable
+    
+    Some logger tests relies on this.
+
+commit bfb21c309bcae17f74a27ac9435b4cbbdf1be767
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2012-04-11 16:31:56 +0200
+
+    Port unit tests to g_test_dbus_up/down
+    
+    https://bugs.freedesktop.org/show_bug.cgi?id=55761
+
+commit d6c2580681fa9e84b6375331babef7f4e3962875
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-09-25 12:53:14 -0400
+
+    Tests: disable single include
+    
+    This will make tests rebuild more often, but makes life easier
+    to other projects who copy/paste our test utilities (e.g. folks)
+
+commit ed6a2b37a5252d603b0ea45bba1940ed5b6f255e
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-09-25 12:52:47 -0400
+
+    Add text-mixin.h in telepathy-glib.h
+
+commit 53d1e1aa87a73db22ffe1e2ffe22b9201b79de41
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-24 17:21:44 +0100
+
+    nano version
+
+commit 25075cfb9b516b2a00e549d10a24a7863f3cf6d2
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-24 15:47:27 +0100
+
+    0.21.2, second try
+
+commit 87f0171800e33938012457f3c38fbd9cf70ae03c
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-24 15:45:25 +0100
+
+    Revert "Copy contact-list.c into the ${builddir} so the XInclude in the docs works"
+    
+    This reverts commit ff26814b44720336cdcb298ddf45aea2edcfae0a.
+    It has a race condition which *sometimes* breaks distcheck :-(
+
+commit ff26814b44720336cdcb298ddf45aea2edcfae0a
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-24 14:42:15 +0100
+
+    Copy contact-list.c into the ${builddir} so the XInclude in the docs works
+    
+    This fixes the long-standing bug that if telepathy-glib was built
+    out-of-tree, the documentation had "FIXME: MISSING XINCLUDE CONTENT"
+    instead of the example.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=69753
+
+commit fe4885a66bb1edba8521329674af6765fa785e77
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-24 14:03:06 +0100
+
+    TpConnection: don't crash if a broken CM has no Groups property
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54500
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit c0fa33df2a7af1888e487676f6b03f4bf445b299
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-08-21 15:14:11 +0100
+
+    inspect-cm example: allow inspecting all CMs
+    
+    Also print a bit more information about protocols, and allow requesting
+    timestamps in debug output.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=68390
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit b0a00c67c61b6b8287aee480d9f5aaa94d0f4979
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-08-20 13:48:58 +0100
+
+    TpConnectionManager, TpProtocol: improve debug output
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=68390
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 3aaacd5566e2edc602870f86e89a3961aff6363c
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-24 14:19:15 +0100
+
+    Revert "0.21.2" while we make the release work
+    
+    This reverts commit 04dd20c2968223029d1310c9fdedbe86592dcaf4.
+
+commit 0b67409d65822f37195f50cfbaa11f95b40791c7
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-09-24 15:18:19 +0200
+
+    Revert "Copy contact-list.c into the ${builddir} so the XInclude in the docs works"
+    
+    This reverts commit ca33bfa878946a1ad904e0dcd88455e989223707.
+
+commit fe25459d20d0d0f2e908c5527b2b01f302f59ac1
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-09-24 15:04:59 +0200
+
+    add ABI file for 0.21.2
+
+commit 47f02f028d33f84cf0af63755d49f9c45230c470
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-09-24 15:02:26 +0200
+
+    update UNRELEASED
+
+commit 04dd20c2968223029d1310c9fdedbe86592dcaf4
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-09-24 12:51:05 +0200
+
+    0.21.2
+
+commit 01c89d0e02cb1233403c42cafc979567e93e8142
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-09-24 12:58:27 +0200
+
+    spec 0.27.2
+
+commit 6924c0d1262102e18ccd7c006c35deb746fe95bf
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-24 13:52:59 +0100
+
+    NEWS
+
+commit ca33bfa878946a1ad904e0dcd88455e989223707
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-24 13:05:20 +0100
+
+    Copy contact-list.c into the ${builddir} so the XInclude in the docs works
+    
+    This fixes the long-standing bug that if telepathy-glib was built
+    out-of-tree, the documentation had "FIXME: MISSING XINCLUDE CONTENT"
+    instead of the example.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=69753
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 8685a6d9368307046b3d21099ed2d33770a84ece
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-24 13:03:10 +0100
+
+    Make avatar image caching asynchronous
+    
+    Based on patches by Luca Versari and Chandni Verma.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=63402
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 7ba46141a7bfd7469ed1dba1d2938b2b62a10f85
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-09-20 15:51:27 -0400
+
+    TpBaseConnection: Implement SelfID and SelfContactChanged
+
+commit 35f5131ef8ce3660ca57854142e2c9a77cb7382c
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-09-18 12:59:41 +0200
+
+    base-protocol: add Presence.Statuses as immutable properties
+    
+    https://bugs.freedesktop.org/show_bug.cgi?id=69520
+
+commit 246e201a0ffcce7648b5cd3818ad889647b79ba5
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-12 18:52:34 +0100
+
+    cm test: test "drop name on get" on a modern CM
+    
+    We were only testing this case on the archaic CM, but that's
+    undesirable when converting to Telepathy 1.0, since a CM with no
+    D-Bus properties will cease to be a valid CM.
+    
+    The diff is a little confusing because I'm basically turning
+    test_dbus_fallback() and its fork test_dbus_ready() back into
+    the same function. The merged version does everything that
+    either of its precursors did.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=69283
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 8caae1a2a176ee27ba627efbbe4f5a7db659ad91
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-12 18:49:28 +0100
+
+    tp_dbus_properties_mixin_dup_all: make public
+    
+    There's no real reason not to - anything that implements D-Bus
+    properties is clearly going to have this method in some form.
+    Also, my next commit needs it.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=69283
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit fa5c747f4ca64c819ff7b0c35e81861fa41666c2
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-05-28 09:56:49 +0100
+
+    Pass on all AM_CPPFLAGS and CPPFLAGS to g-ir-scanner
+    
+    Failure to do so causes a false-positive in Debian's build log checks,
+    which check that "hardening" flags are passed to all compilations.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=65293
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 79beda6266d5730d2c88cd31edd52d729f2cd27d
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-08-20 20:44:12 +0100
+
+    Regression tests: also avoid tmpnam() here
+    
+    This is a bit simpler than in production code, because we can just
+    abort on errors that "should never happen".
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=68350
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit f4076dffc10600006dd6415c3584f97bd36907a6
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-08-20 20:42:10 +0100
+
+    _tp_create_temp_unix_socket: avoid using tmpnam()
+    
+    On current Debian unstable, gcc/ld issues a warning about tmpnam(),
+    because it's usually used in an unsafe way. "gcc -Wl,--fatal-warnings"
+    (which I'm using in my development environment) upgrades that to fatal.
+    
+    Our usage was in fact safe (trying to listen on a socket always
+    behaves like O_EXCL|O_CREAT, which can DoS'd but is not subject to
+    symlink attacks), but we're swimming against the current by trying
+    to use tmpnam(). Instead, create a secure private temporary directory
+    with g_dir_make_tmp(), and put our socket in there.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=68350
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 21b395c356549d821b30253f6ec5be8dbd15e333
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 12:20:30 +0100
+
+    C text handler: comment why the subclass / feature-prep works
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 15eda6a121a36c19787255ada71f7b8e0e6ed762
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 12:20:06 +0100
+
+    Python text handler: ensure that we get a Tp.AutomaticClientFactory
+    
+    We want a Tp.TextChannel, not just a Tp.Channel, and the easiest way
+    to do that is to use Tp.AccountManager.dup() (which provides a
+    Tp.AutomaticClientFactory). Tp.SimpleHandler.new() is deprecated,
+    for approximately this reason.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit de7e9b604dd50cb9fcadf3b226d049a9f3cf7ce3
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 12:18:36 +0100
+
+    extended-client: comment that we're going behind MC's back
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit a44973d2298609dcef7d0cb482f230492524cc69
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 12:06:33 +0100
+
+    TpSimpleClientFactory: drop doc-comments for private functions
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 844041a378c457974e2b464b6081bc75f7ef23c2
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 12:03:39 +0100
+
+    TpSimpleClientFactory: document "connection must be ours"
+    
+    tp_simple_client_factory_ensure_channel and
+    tp_simple_client_factory_ensure_contact already enforced that via a check,
+    but didn't document it.
+    
+    tp_simple_client_factory_upgrade_contacts_async didn't previously
+    either document or enforce it, and strictly speaking there's no reason
+    why it shouldn't work, so I'm using a warning instead of a
+    critical-and-return - but it probably indicates an error, so I think
+    it should warn.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 0ed8a3af94781475354aec323a8e225787f07a48
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 12:01:51 +0100
+
+    TpConnection: don't recommend that applications call Connect()
+    
+    For most applications, the rule is "the account manager does that".
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 02db7af6e60a69d4e23f3e0c187967cbc5a459bd
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 12:01:18 +0100
+
+    TpConnection: describe factory behaviour
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit a8d4b650dc5e91f9e51ecedffa3a6eaaf983b822
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 12:01:02 +0100
+
+    TpCDO, TpChannelRequest: always has a factory
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 3c4b4af98aeefd5956a76a89b4ceb3055233104f
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 12:00:42 +0100
+
+    TpCDO, TpChannelRequest: mention that they should come from "larger" objects
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 511b9f90484d1e05731ecd9587c67bd78bfc47d5
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 12:00:12 +0100
+
+    TpSimpleClientFactory: suggest getting objects from "larger" objects
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 6758095e3ef770773808aaf951b28ac688958d59
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 11:58:53 +0100
+
+    TpConnection: connections should come from accounts
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 8f41ddb26198eb6bee7f9019a3955c1623519d28
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 11:46:03 +0100
+
+    TpConnection: remove woefully outdated feature list
+    
+    TpConnection does much, much more than a simple D-Bus proxy now.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 9f657accda96afcec4da64b6849fb87eb6f21cc0
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 11:45:22 +0100
+
+    TpChannelDispatchOperation, TpChannelRequest: remove boilerplate
+    
+    This text made sense before we implemented more stuff, but is
+    obsolete now.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 2b51b0772dbc716a50e8df0f84d3c51640834e55
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 11:43:59 +0100
+
+    TpAccount: document interaction with factories a bit better
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 7251b59dd4d06e55574f7a68404200253e2e2491
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 11:43:22 +0100
+
+    TpAccountManager: tighten up guarantees about factories
+    
+    It always has a factory, and if none is specified at construction,
+    the default is to use a TpAutomaticClientFactory. If we document
+    that, then client code won't need to mess about with
+    tp_account_manager_set_default() unless it has special requirements,
+    namely: either it has a factory of its own with more features and/or
+    subclasses, or a TpSimpleClientFactory is sufficient and low-overhead
+    is important.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 6f7e04e835f5733ba77453d5e14cb48217a45f7f
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 11:39:09 +0100
+
+    TpAccountManager: fix documentation of how many accounts are prepared
+    
+    The documentation had fewer guarantees than the implementation: since
+    0.16, we've delayed notification of new accounts until they're prepared.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 4717963eb9095a27495ac2f5c1d74174a81c3ac4
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 13:16:02 +0100
+
+    tube examples: use g_message(), not g_debug()
+    
+    g_debug() is invisible unless you set G_MESSAGES_DEBUG, which is
+    unhelpful when smoke-testing example code.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit c5ef21c08359eb9cc7e03d2ae8ec852e717deac7
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 13:14:29 +0100
+
+    tube offering examples: don't dump core on invalid arguments
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit c4ac0a8300be1e5770c49feb57f977feaad4a58d
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-06 13:14:07 +0100
+
+    tube offerers: use an automatic client factory
+    
+    The TpSimpleClientFactory base class doesn't use channel-type-specific
+    subclasses, which these examples rely on.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=54061
+    Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 6adc3a97491b8aef64ac00a5efa5685fc5f2c6b7
+Merge: 9efb996 eefe5a1
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-04 14:04:58 +0100
+
+    Merge branch 'telepathy-glib-0.20'
+    
+    Conflicts:
+    	NEWS
+
+commit eefe5a1fc22c4ac9911a2fc7f16299c454ecebea
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-09-04 14:03:01 +0100
+
+    NEWS for 0.20.x
+
+commit 883d8878ea635baffd869ab548a1c736404dd682
+Author: Debarshi Ray <rishi@gnu.org>
+Date:   2013-09-04 13:49:24 +0200
+
+    TpHeap: comparator results are not guaranteed to be -1, 0 and 1
+    
+    A GCompareFunc might return any negative or positive value if the two
+    values are not equal.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=68932
+    Reviewed-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
+
+commit 9efb9966e3d7425d15ac1038584aadc8e81ac56c
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-08-20 21:03:10 +0100
+
+    more NEWS
+
+commit 69f749d936ea1f060f9465e41854efd8af4f39d7
+Merge: 6c2ba1a 2ebe4df
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-08-20 21:02:46 +0100
+
+    Merge branch 'telepathy-glib-0.20'
+    
+    Conflicts:
+    	NEWS
+    	configure.ac
+
+commit 2ebe4dff95aea5d9c6485f6fa3c64b86b2930a36
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-08-20 20:51:43 +0100
+
+    nano version
+
+commit ea90d97e543b12a90db5b05958840045cc4f7a1d
+Author: Emilio Pozuelo Monfort <emilio.pozuelo@collabora.co.uk>
+Date:   2013-08-19 12:49:32 +0200
+
+    Fix documentation for tp_connection_get_self_handle
+    
+    Signed-off-by: Emilio Pozuelo Monfort <emilio.pozuelo@collabora.co.uk>
+    Reviewed-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
+
+commit 6c2ba1a537ade5c26b7aa8d3b511c0ae8336c6e4
+Author: Emilio Pozuelo Monfort <emilio.pozuelo@collabora.co.uk>
+Date:   2013-08-19 12:49:32 +0200
+
+    Fix documentation for tp_connection_get_self_handle
+    
+    Signed-off-by: Emilio Pozuelo Monfort <emilio.pozuelo@collabora.co.uk>
+    Reviewed-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
+
 commit ff51b6a6a9f2ba28d3d919e60ef98c13ce0a77a0
 Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
 Date:   2013-07-24 13:21:57 +0100
@@ -22,6 +1614,14 @@ Date:   2013-07-22 17:57:23 +0100
     Bug: https://bugs.freedesktop.org/show_bug.cgi?id=67183
     Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
 
+commit 04d3e5f75d072af465219d571a443a8548df904f
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2012-02-22 09:34:03 +0100
+
+    early return if GetContactInfo() failed
+    
+    https://bugs.freedesktop.org/show_bug.cgi?id=46430
+
 commit ada77b717f5bcdf442dff3505db2dacf6c05b8d3
 Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
 Date:   2012-02-22 09:34:03 +0100
@@ -30,11 +1630,23 @@ Date:   2012-02-22 09:34:03 +0100
     
     https://bugs.freedesktop.org/show_bug.cgi?id=46430
 
+commit 3df3c69fb8da8910affee42f66aa9f1e18ebe906
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-06-20 17:06:04 +0100
+
+    nano version
+
 commit 3022deb9910fc7793cdf5a95f157effdb890ed6c
 Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
 Date:   2013-06-20 16:32:54 +0100
 
     nano version
+
+commit 1a311e12cadf981d913d40aed4cd3d6b52d8a50e
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-06-20 16:06:08 +0100
+
+    Prepare 0.21.1 release
 
 commit 627c7217f21ec9b89e542983591ac54fca3c6281
 Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
@@ -42,11 +1654,44 @@ Date:   2013-06-20 15:40:45 +0100
 
     Prepare 0.20.3
 
+commit 66733cb8347bbc541dadd87936127f9d73e479bf
+Merge: a455287 a95947e
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-06-11 15:48:20 +0100
+
+    Merge branch 'telepathy-glib-0.20'
+    
+    Conflicts:
+    	NEWS
+
 commit a95947e2e2ad6724c6b1e74910354fb0fa4897e1
 Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
 Date:   2013-06-11 15:47:11 +0100
 
     NEWS
+
+commit a4552870397dfad0f6f76e64e1f030845236cd98
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2012-02-22 15:01:01 +0000
+
+    tp_call_stream_endpoint_get_state: return a TpStreamEndpointState on error
+    
+    TP_MEDIA_STREAM_STATE_DISCONNECTED is from another enum entirely,
+    and will no longer exist in Telepathy 1.0.
+    
+    Signed-off-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=65517
+
+commit 050932ec56ad627380fce209eed9b26a593c3a00
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-06-07 18:19:37 +0100
+
+    .gitignore: Automake 1.13 installs /test-driver
+    
+    Signed-off-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=65517
 
 commit a9ea7a2170d5f0cd4a9aef4bb85655b5e4e181ee
 Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
@@ -60,6 +1705,42 @@ Date:   2013-06-07 17:14:11 +0100
     Signed-off-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
     Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
     Bug: https://bugs.freedesktop.org/show_bug.cgi?id=65517
+
+commit 9d5f9bfffd478e33a2785be6e6ea628079630ba4
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-06-07 17:09:19 +0100
+
+    util-cxx: include config.h
+    
+    This avoids a deprecation warning for g_type_init().
+    
+    Signed-off-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=65517
+
+commit 0e944e7d41b38cb248a2164468d2fe064f61819d
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-06-07 17:08:53 +0100
+
+    Use AC_PROG_MKDIR_P instead of deprecated AM_PROG_MKDIR_P
+    
+    This means we define MKDIR_P instead of mkdir_p - adjust.
+    Strictly speaking this requires Autoconf 2.59d, but 2.60 is hardly a
+    new innovation (it was released in 2006).
+    
+    Signed-off-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=65517
+
+commit 1fbfb30038dbdda78f79533138fec05a270ea485
+Merge: 8e922ea ba0b31b
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-06-10 15:26:52 +0100
+
+    Merge branch 'telepathy-glib-0.20'
+    
+    Conflicts:
+    	NEWS
 
 commit ba0b31b425d5871c4141ff0a7f477ec4e296e926
 Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
@@ -77,6 +1758,13 @@ Date:   2013-03-12 11:11:02 +0100
     
     Bug: https://bugs.freedesktop.org/show_bug.cgi?id=61616
     Reviewed-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
+
+commit 8e922eaeba7b7875b01697c4c1bac2df7e8ac1b9
+Merge: f85107b ccbcb74
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-06-10 15:02:38 +0100
+
+    Merge branch 'telepathy-glib-0.20'
 
 commit ccbcb74e39d92ddc44fe2e86816ba8dfa7a27daa
 Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
@@ -108,6 +1796,22 @@ Date:   2013-01-03 11:02:52 +0000
     Signed-off-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
     Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
 
+commit f85107b368c2a4223623b7a50514c17fe4eac079
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-06-07 17:49:58 +0100
+
+    Add a simple JavaScript debug-client which collects debug logs
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=65518
+    Acked-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+
+commit 2acff880f5bcbd6a69baaad960ea3a029e34736e
+Merge: 60b2bbd 65cfeeb
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-06-10 14:52:10 +0100
+
+    Merge branch 'telepathy-glib-0.20'
+
 commit 65cfeebe29bdd85fa7b72856ce93b900f7af1539
 Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
 Date:   2013-06-10 14:49:31 +0100
@@ -132,6 +1836,13 @@ Date:   2013-06-07 17:42:15 +0100
     Bug: https://bugs.freedesktop.org/show_bug.cgi?id=65518
     Reviewed-by: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
 
+commit 60b2bbdce8ebe22152ac2078bb095a3eb0bef668
+Merge: f58e406 8e6b343
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-05-22 11:02:30 +0200
+
+    Merge branch 'telepathy-glib-0.20'
+
 commit 8e6b3438e6ec8f94ad83786ea60d183f23c2a8fe
 Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
 Date:   2013-05-22 10:51:06 +0200
@@ -139,6 +1850,16 @@ Date:   2013-05-22 10:51:06 +0200
     TpCallStream: Fix local-sending-state-changed signal signature.
     
     Fixes fdo#64837
+
+commit f58e406cfffc1782ece080a17177271c098a1e0e
+Merge: 5d5c119 5cb65fa
+Author: Will Thompson <will.thompson@collabora.co.uk>
+Date:   2013-04-14 11:55:14 +0100
+
+    Merge branch 'telepathy-glib-0.20' and update NEWS
+    
+    Conflicts:
+    	NEWS
 
 commit 5cb65fa971d4461b1f6fc6fd79a4f5b6fff3a8cc
 Author: Will Thompson <will.thompson@collabora.co.uk>
@@ -165,6 +1886,17 @@ Date:   2013-01-23 11:34:20 +0000
     string crashes. I think this is a bug in gobject-introspection but we
     can annotate it as an array to fix this particular function.
 
+commit 5d5c11908eb9b6e91455416d96e41a7a636c56e5
+Merge: d3e062e 0b008a2
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-04-04 15:59:26 +0100
+
+    Merge branch 'telepathy-glib-0.20' and update NEWS
+    
+    Conflicts:
+    	NEWS
+    	configure.ac
+
 commit 0b008a263cfe39d5fcb128d9076c22dfec8905a7
 Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
 Date:   2013-04-04 15:50:34 +0100
@@ -190,6 +1922,18 @@ Date:   2013-04-04 14:28:58 +0100
     Signed-off-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
     Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
 
+commit d3e062e6c771b611af9c35120a897117e8149825
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-04-03 13:04:38 +0200
+
+    bump nano version
+
+commit 31cb359ef8c1dc80f700c3fcc72d2578b0ffa0ba
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-04-03 12:54:54 +0200
+
+    0.21.0 release
+
 commit b76abbb76f13fa4aef45c258994b26a51c584c96
 Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
 Date:   2013-04-03 12:47:28 +0200
@@ -202,6 +1946,16 @@ Date:   2013-04-03 12:34:27 +0200
 
     0.20.2 release
 
+commit bda340636d7fd33902e8016113e957dac2561a70
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-04-03 11:02:13 +0200
+
+    Fix test_utf8_make_valid()
+    
+    Older GLib explicitly disallowed non-characters (as this test assumes)
+    but newer GLib follows Unicode Corrigendum 9 and allows them.
+    https://bugzilla.gnome.org/show_bug.cgi?id=694669
+
 commit 49cf6904ed3c5cee461d1ddcbaff73f4a10e3426
 Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
 Date:   2013-04-03 11:02:13 +0200
@@ -211,6 +1965,36 @@ Date:   2013-04-03 11:02:13 +0200
     Older GLib explicitly disallowed non-characters (as this test assumes)
     but newer GLib follows Unicode Corrigendum 9 and allows them.
     https://bugzilla.gnome.org/show_bug.cgi?id=694669
+
+commit aa640da529abdefc4cc459c3b61e035ad0ec6a71
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-03-29 19:45:23 +0100
+
+    Verify that TpConnection is not leaked in contacts unit tests
+    
+    This plugs various leaks in the tests as well.
+
+commit 29f3243d20a1a239f3c7f3bc28b7fce17763f2ee
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-03-29 18:16:59 +0100
+
+    TpConnection: break refcycle when invalidated
+    
+    It is already explained in tp_connection_invalidated(), connection
+    must drop its refs to all TpContact at that point.
+
+commit 86ac0ba97da73ed41f74c2d4b6708be1a1928404
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-03-29 18:16:39 +0100
+
+    TpConnection: self->priv->self_contact is leaked
+
+commit 484abc61967d4b18b8aa97f9fe5b15d6e9475920
+Merge: a0f78fa c7dab2d
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-04-02 10:09:34 +0100
+
+    Merge branch 'telepathy-glib-0.20'
 
 commit c7dab2d3c6936443fb4aee43f54defa81b5dc592
 Author: Maksim Melnikau <maxposedon@gmail.com>
@@ -222,11 +2006,37 @@ Date:   2013-03-31 19:40:51 +0300
     Bug: https://bugs.freedesktop.org/show_bug.cgi?id=62968
     Reviewed-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
 
+commit a0f78fab8b33eae3855f905b99c2b6f2228eef2b
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-03-19 10:57:26 +0100
+
+    Replace more printf() with DEBUG()
+
+commit b105ec76bdc812cd83134618c216773466f18056
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-03-19 10:41:19 +0100
+
+    GroupMixin: Use DEBUG() instead of printf()
+
+commit 819310eaf22c882481ac72b44f07c6be9c7af3bf
+Merge: 81b4e43 a33573f
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-03-12 16:40:22 +0100
+
+    Merge branch 'telepathy-glib-0.20'
+
 commit a33573ff2c48b9ec37bb6c36801be3b80871e62b
 Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
 Date:   2013-03-12 16:25:43 +0100
 
     start_file_transfer(): unset timer_id
+
+commit 81b4e43cd4a71dbd0cb71150ef6c7fcf3cbd77b1
+Merge: e61dd17 9ea571e
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-03-12 15:19:44 +0100
+
+    Merge branch 'telepathy-glib-0.20'
 
 commit 9ea571eca7d12648776c7179255711dbdd9aac25
 Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
@@ -239,6 +2049,34 @@ Author: Thomas Bechtold <thomasbechtold@jpberlin.de>
 Date:   2013-02-09 21:50:04 +0100
 
     Fix introspection annotations for GStrv types
+
+commit e61dd171562690e6ab0cc411e048f7f511856e6e
+Author: Thomas Bechtold <thomasbechtold@jpberlin.de>
+Date:   2013-02-09 21:50:04 +0100
+
+    Fix introspection annotations for GStrv types
+
+commit 8198f852f26803285c14645b319c83d7e04e28d9
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2013-01-29 10:41:11 +0100
+
+    README: LD_LIBRARY_PATH needs to be set for running introspection examples
+
+commit 8608a306e80f3aec068c36c83e17f35c52df1381
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-01-28 14:01:10 +0000
+
+    NEWS for master
+
+commit fc5fdd26527e77f5f84a08f4475cc9984ccd7533
+Merge: 18dd2cc bb3d4a4
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-01-28 13:52:17 +0000
+
+    Merge branch 'telepathy-glib-0.20'
+    
+    Conflicts:
+    	NEWS
 
 commit bb3d4a427f8bd28a83896e499b64755534de02c5
 Merge: 949324d 55f7253
@@ -268,6 +2106,33 @@ Date:   2013-01-18 22:31:05 +0100
     Reviewed-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
     Bug: https://bugs.freedesktop.org/show_bug.cgi?id=59604
 
+commit 18dd2cc616621f796bf1d1987e55b51eedca00b8
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-01-07 17:29:45 +0100
+
+    TpAccount: implement change notification on uri-schemes property
+
+commit 15b8eea5133e683ac14c79734dfbea6747af6e5f
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-01-07 17:07:50 +0100
+
+    add TpAccount:uri-schemes: property
+    
+    The property was missing for some reason.
+
+commit 16578d4864f04d26c05c94dbd4c6035ba728d55c
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-01-07 16:57:04 +0100
+
+    simple-account: add tp_tests_simple_account_add_uri_scheme()
+
+commit edd3e68fb24ffbeaf4b1073971bdecb0c4591a02
+Merge: b3570e8 949324d
+Author: Will Thompson <will.thompson@collabora.co.uk>
+Date:   2013-01-09 10:00:56 +0000
+
+    Merge branch 'telepathy-glib-0.20'
+
 commit 949324dbc3515e2cebced4a1a410c725896f4a6e
 Author: Will Thompson <will.thompson@collabora.co.uk>
 Date:   2013-01-09 09:59:41 +0000
@@ -276,6 +2141,25 @@ Date:   2013-01-09 09:59:41 +0000
     
     tp_connection_get_contact_by_id_async does not exist; it is called
     tp_connection_dup_contact_by_id_async.
+
+commit b3570e8e77cb890c62744dc62859c49a6bebd8aa
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-01-08 09:59:13 +0100
+
+    add missing config.h includes
+    
+    g_type_init() has been deprecated in GLib master. By including config.h we
+    avoid the deprecation warning as it contains GLib's versions macros.
+
+commit 3c76b3c7833675bf04e28575805da874f07bee51
+Merge: 08a0b1b 12e8b21
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-01-07 13:03:09 +0000
+
+    Merge branch 'telepathy-glib-0.20'
+    
+    Conflicts:
+    	NEWS
 
 commit 12e8b215512e99b8f11a2800b8f9842c59dd38d6
 Merge: 308408b a0f0298
@@ -313,11 +2197,99 @@ Date:   2013-01-06 02:01:00 +0300
     [edited for coding style, added a comment -smcv]
     Reviewed-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
 
+commit 08a0b1b3462a571a91d12ab63d3d5c17d9317c38
+Author: Maksim Melnikau <maxposedon@gmail.com>
+Date:   2013-01-06 02:03:36 +0300
+
+    del unused magic import in ft-handler.py example
+    
+    1) it isn't used now
+    2) it is prevents run example on machines, which hasn't magic
+    3) magic(libmagic) isn't popular in various linux distributions
+    
+    Signed-off-by: Maksim Melnikau <maxposedon@gmail.com>
+    Reviewed-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
+
+commit ff1eea1e3abdc78665bb8b72c65bb19c8b1084b3
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-01-03 18:19:08 +0000
+
+    NEWS for 0.21
+
+commit 71ed6c18ca1c52d11256dadfbb4a2e530b5ae9c9
+Merge: 8759a8f 308408b
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-01-03 18:18:39 +0000
+
+    Merge branch 'telepathy-glib-0.20'
+    
+    Conflicts:
+    	NEWS
+    	configure.ac
+
 commit 308408b98358b701a629b2b7821af81eaecc0239
 Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
 Date:   2013-01-03 18:17:31 +0000
 
     NEWS
+
+commit 8759a8f11bb1b480b0beaf3754020dfec73572e0
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2012-11-09 17:37:38 +0000
+
+    Add dbus-properties-mixin-internal.h to tarballs, fixing distcheck
+    
+    Cherry-picked: from commit 162f347d313608bd6ea7148813c9fef99a0dee81
+
+commit 202e5adc9a6216688d57940f92e9a3fd5c3b50fc
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-01-03 11:40:46 +0000
+
+    contact-lists test: add a regression test for fd.o #52011
+    
+    Signed-off-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=52011
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+
+commit bbef06e7e6554850a9db6686ce19ad0cca39513f
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-01-03 11:02:52 +0000
+
+    tp_base_contact_list_set_list_received: don't re-announce groups
+    
+    We already announced each group from tp_base_contact_list_groups_created
+    a few lines ago; we don't need to do it again.
+    
+    Ideally we'd add each channel's members before announcing the
+    channel itself, so that the channel is created "fully-formed"; but
+    we've never actually done that, and keeping the first NewChannels
+    instead of the second seems less likely to break applications.
+    These channels are only for legacy code anyway: any modern client
+    should be using the ContactGroups interface.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=52011
+    Signed-off-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+
+commit f4634b2caf1f92f27a507207ff181d3a7927871f
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2013-01-03 12:33:09 +0000
+
+    Make the code generation tools work under either Python 2 or 3
+    
+    They have been verified to produce identical output in _gen.
+    
+    Bug: https://bugs.freedesktop.org/show_bug.cgi?id=56758
+    Signed-off-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
+    Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+
+commit 8058faf2407867dcda1aca35616dd23496b1b814
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2013-01-02 15:22:07 +0100
+
+    text-channel: rename static vars/function to match the feature name
+    
+    The actual name of the feature is INCOMING_MESSAGE, not PENDING_MESSAGE.
 
 commit 8da3211ce74e143f59973b8f2f17295b7165b22c
 Author: Philip Withnall <philip@tecnocode.co.uk>
@@ -331,6 +2303,32 @@ Date:   2012-12-29 11:41:50 +0000
     Signed-off-by: Robert McQueen <robert.mcqueen@collabora.co.uk>
     
     https://bugs.freedesktop.org/show_bug.cgi?id=58851
+
+commit fe88f67b789b7702d15866b80ebb989a28b6f7e6
+Author: Philip Withnall <philip@tecnocode.co.uk>
+Date:   2012-12-29 11:41:50 +0000
+
+    Add some missing (element-type) introspection annotations
+    
+    This fixes compilation with --enable-introspection when introspection
+    warnings are treated as errors.
+    
+    Signed-off-by: Robert McQueen <robert.mcqueen@collabora.co.uk>
+    
+    https://bugs.freedesktop.org/show_bug.cgi?id=58851
+
+commit 4acc51d5b848359211bb8a00f0daa8e0bc44eb65
+Author: Will Thompson <will.thompson@collabora.co.uk>
+Date:   2012-12-10 14:11:05 +0000
+
+    Remove pkg-config dependency from .pc files
+    
+    This causes problems for Yocto, since they use pc files when choosing
+    package dependencies. It doesn't make a huge amount of sense for a
+    .pc file to depend on pkg-config: by the time you've parsed the file,
+    you've got pkg-config. And the versioned dependency is checked by
+    configure, as commit 1154794 (which added this) mentions, so if you've
+    compiled telepathy-glib, your pkg-config is new enough.
 
 commit 9197c36511e0fedd1cd32d99327a06ae3cd993d9
 Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
@@ -349,6 +2347,25 @@ Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
 Date:   2012-11-09 17:25:08 +0000
 
     Prepare release 0.20.1
+
+commit 48a6895f21fd3a3ef996e3e18ded4ed8a8f9f576
+Author: Debarshi Ray <rishi@gnu.org>
+Date:   2012-10-17 14:48:11 +0200
+
+    base-call-channel: Don't call set_state from set_ringing and set_queued
+    
+    ... because they only change the flags and not the state. Instead emit
+    CallStateChanged directly.
+    
+    Fixes: https://bugs.freedesktop.org/56044
+
+commit dfca38a93e2c504c1a4643eec291c4ddb4368f4f
+Author: Debarshi Ray <rishi@gnu.org>
+Date:   2012-10-17 10:50:24 +0200
+
+    base-call-channel: Ignore transitions with the same state
+    
+    Fixes: https://bugs.freedesktop.org/56044
 
 commit 1dcb667751898544efad73b8e42d91ff58119e0d
 Author: Debarshi Ray <rishi@gnu.org>
@@ -369,6 +2386,31 @@ Date:   2012-10-17 10:50:24 +0200
     
     Fixes: https://bugs.freedesktop.org/56044
 
+commit a7e61d16b9aadf1cf212d8fc40db33e7cb2bccf1
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2012-10-10 15:44:26 +0100
+
+    add missing inclusion
+
+commit 1c6846e925196b8286d96ee59a8f0636ee6f2a60
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2012-10-10 14:39:05 +0200
+
+    Util: Link APIs to their bug for inclusion in GLib
+
+commit e83233400f60acaac9838966b504801f00206132
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2012-10-10 14:15:01 +0200
+
+    Deprecate tp_g_key_file_get_(u)int64, GLib has it since 2.26
+
+commit acd25c4ddc583f4fbfe127c3dae2f3d5a1e58b03
+Merge: b203d23 ce8d1f6
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2012-10-08 16:22:16 +0100
+
+    Merge branch 'telepathy-glib-0.20'
+
 commit ce8d1f6edf9161df170bc781f903f85346ac5554
 Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
 Date:   2012-10-08 14:32:12 +0100
@@ -377,6 +2419,16 @@ Date:   2012-10-08 14:32:12 +0100
     
     foo_CPPFLAGS overrides AM_CPPFLAGS, so if you want to include the latter
     in the former, you have to do it explicitly.
+
+commit b203d2368f6f3d92d9be10b140be94dd00450a1d
+Merge: 75a6ae1 e39ce95
+Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
+Date:   2012-10-08 13:26:41 +0100
+
+    Merge branch 'telepathy-glib-0.20'
+    
+    Conflicts:
+    	NEWS
 
 commit e39ce95dbf2b2c57fb4621291a450aa8584fb193
 Author: Simon McVittie <simon.mcvittie@collabora.co.uk>
@@ -439,6 +2491,48 @@ Date:   2012-10-05 15:56:16 +0100
     Signed-off-by: Simon McVittie <simon.mcvittie@collabora.co.uk>
     Bug: https://bugs.freedesktop.org/show_bug.cgi?id=55666
     Reviewed-by: Xavier Claessens <xavier.claessens@collabora.co.uk>
+
+commit 75a6ae1febed4ab47bbc090a5cc30627fe341458
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2012-10-04 15:08:37 +0200
+
+    Add missing doc for TP_VERSION_0_22
+
+commit cb289352235a5c53815bcaf542c9edbbbd325d4d
+Author: Xavier Claessens <xavier.claessens@collabora.co.uk>
+Date:   2012-10-04 11:21:33 +0200
+
+    Add defs for 0.22 branch
+
+commit 5639838f829ef4ea38be2a6eaa30d87b15899c42
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2012-10-03 14:17:19 +0200
+
+    start dev of 0.21.x
+
+commit ed011cd34e0a3c8b6e6fbf6a695b62f0a0177d02
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2012-10-03 14:16:45 +0200
+
+    Revert "Disable warnings about deprecated functions for stable branch"
+    
+    This reverts commit 74b79c60c152d7ac49f091c88c2001a6dcec93f1.
+
+commit aba81b8599fca976d3d0313043d3ad2c1ce7d106
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2012-10-03 14:16:34 +0200
+
+    Revert "Don't check documentation completeness in this stable branch"
+    
+    This reverts commit 860832b0521da2145e71bb2c06ff05b3a921c59f.
+
+commit 66b0194a274f7503074f4062884ab6472de090e2
+Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>
+Date:   2012-10-03 14:16:21 +0200
+
+    Revert "Upload documentation to the 0.20.x location"
+    
+    This reverts commit 8a13206cedc749c301521f65b7f6f017fa39aee5.
 
 commit dc6f2f106202da6903e49848272f49d171423366
 Author: Guillaume Desmottes <guillaume.desmottes@collabora.co.uk>

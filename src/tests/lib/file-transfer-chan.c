@@ -16,9 +16,6 @@
 #include "debug.h"
 
 #include <telepathy-glib/telepathy-glib.h>
-#include <telepathy-glib/channel-iface.h>
-#include <telepathy-glib/svc-channel.h>
-#include <telepathy-glib/gnio-util.h>
 
 #include <glib/gstdio.h>
 
@@ -79,6 +76,7 @@ struct _TpTestsFileTransferChannelPrivate {
     TpSocketAddressType address_type;
     GValue *address;
     gchar *unix_address;
+    gchar *unix_tmpdir;
     guint connection_id;
     TpSocketAccessControl access_control;
 
@@ -159,6 +157,11 @@ dispose (GObject *object)
     g_unlink (self->priv->unix_address);
 
   tp_clear_pointer (&self->priv->unix_address, g_free);
+
+  if (self->priv->unix_tmpdir != NULL)
+    g_rmdir (self->priv->unix_tmpdir);
+
+  tp_clear_pointer (&self->priv->unix_tmpdir, g_free);
 
   ((GObjectClass *) tp_tests_file_transfer_channel_parent_class)->dispose (
       object);
@@ -481,7 +484,8 @@ file_transfer_provide_file (TpSvcChannelTypeFileTransfer *iface,
     }
 
   self->priv->address = _tp_create_local_socket (address_type, access_control,
-      &self->priv->service, &self->priv->unix_address, &error);
+      &self->priv->service, &self->priv->unix_address,
+      &self->priv->unix_tmpdir, &error);
 
   if (self->priv->address == NULL)
       {
@@ -547,7 +551,8 @@ file_transfer_accept_file (TpSvcChannelTypeFileTransfer *iface,
     }
 
   address = _tp_create_local_socket (address_type, access_control,
-      &self->priv->service, &self->priv->unix_address, &error);
+      &self->priv->service, &self->priv->unix_address,
+      &self->priv->unix_tmpdir, &error);
 
   tp_g_signal_connect_object (self->priv->service, "incoming",
       G_CALLBACK (service_incoming_cb), self, 0);

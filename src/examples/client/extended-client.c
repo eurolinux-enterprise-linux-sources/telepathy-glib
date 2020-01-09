@@ -71,14 +71,15 @@ got_hats_cb (TpConnection *conn,
   for (i = 0; i < hats->len; i++)
     {
       GValueArray *vals = g_ptr_array_index (hats, i);
+      guint handle;
+      const gchar *color;
+      guint style;
+      GHashTable *details;
 
+      tp_value_array_unpack (vals, 4,
+          &handle, &color, &style, &details);
       g_message ("Contact #%u has hat style %u, color \"%s\", with %u "
-          "properties",
-          g_value_get_uint (g_value_array_get_nth (vals, 0)),
-          g_value_get_uint (g_value_array_get_nth (vals, 2)),
-          g_value_get_string (g_value_array_get_nth (vals, 1)),
-          g_hash_table_size (g_value_get_boxed (g_value_array_get_nth (vals,
-                3))));
+          "properties", handle, style, color, g_hash_table_size (details));
     }
 
   tp_cli_connection_call_disconnect (conn, -1, disconnect_cb,
@@ -212,7 +213,7 @@ cm_requested_connection (TpConnectionManager *manager,
   if (die_if (error, "RequestConnection()"))
     return;
 
-  /* FIXME: there should be convenience API for this */
+  /* Because we don't have an AccountManager, we have to do more work here. */
   factory = tp_simple_client_factory_new (NULL);
   conn = tp_simple_client_factory_ensure_connection (factory, object_path, NULL,
       &e);
@@ -257,6 +258,9 @@ connection_manager_got_info (TpConnectionManager *cm,
       g_value_set_static_string (&value, "myself@server");
       g_hash_table_insert (params, "account", &value);
 
+      /* This example is rather lower-level than most: it's
+       * "going behind the account manager's back". This is not recommended
+       * in real applications. */
       tp_cli_connection_manager_call_request_connection (cm,
           -1, "example", params, cm_requested_connection, NULL, NULL, NULL);
 
@@ -280,7 +284,6 @@ main (int argc,
   GError *error = NULL;
   TpDBusDaemon *dbus = NULL;
 
-  g_type_init ();
   tp_debug_set_flags (g_getenv ("EXAMPLE_DEBUG"));
 
   example_cli_init ();

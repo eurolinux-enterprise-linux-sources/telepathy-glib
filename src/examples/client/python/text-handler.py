@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 
+import gi
+
 from gi.repository import GObject
 GObject.threads_init()
 
+gi.require_version('TelepathyGLib', '0.12')
 from gi.repository import TelepathyGLib
 
 def echo_message(channel, msg, pending):
@@ -50,9 +53,9 @@ def handle_channels_cb(handler, account, connection, channels, requests,
 if __name__ == '__main__':
     #TelepathyGLib.debug_set_flags("all")
 
-    dbus = TelepathyGLib.DBusDaemon.dup()
+    am = TelepathyGLib.AccountManager.dup()
 
-    handler = TelepathyGLib.SimpleHandler.new(dbus, False, False,
+    handler = TelepathyGLib.SimpleHandler.new_with_am(am, False, False,
         'ExampleHandler', False, handle_channels_cb, None)
 
     handler.add_handler_filter({

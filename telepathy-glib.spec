@@ -1,24 +1,18 @@
 %global	dbus_ver	0.95
 %global	dbus_glib_ver	0.90
-%global	glib_ver	2.32.0
+%global	glib_ver	2.36.0
 %global gobj_ver	1.30
 %global vala_ver	0.16.0
 
 Name:           telepathy-glib
-Version:        0.20.4
-Release:        5%{?dist}
+Version:        0.24.0
+Release:        1%{?dist}
 Summary:        GLib bindings for Telepathy
 
 Group:          System Environment/Libraries
 License:        LGPLv2+
 URL:            http://telepathy.freedesktop.org/wiki/FrontPage
 Source0:        http://telepathy.freedesktop.org/releases/%{name}/%{name}-%{version}.tar.gz
-
-# https://bugs.freedesktop.org/show_bug.cgi?id=63402
-Patch0:         0001-Make-avatar-image-caching-asynchronous.patch
-
-# https://bugs.freedesktop.org/show_bug.cgi?id=68932
-Patch1:         0001-TpHeap-comparator-results-are-not-guaranteed-to-be-1.patch
 
 BuildRequires:  gtk-doc >= 1.17
 BuildRequires:  dbus-devel >= %{dbus_ver}
@@ -66,8 +60,6 @@ developing applications that use %{name}.
 
 %prep
 %setup -q
-%patch0 -p1
-%patch1 -p1
 
 
 %check
@@ -114,6 +106,18 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 
 
 %changelog
+* Thu Mar 19 2015 Richard Hughes <rhughes@redhat.com> - 0.24.0-1
+- Update to 0.24.0.
+Resolves: #1174520
+
+* Wed Sep  3 2014 Debarshi Ray <rishi@fedoraproject.org> - 0.20.4-7
+- Use the upstream approved patch
+Resolves: #1133111
+
+* Thu Aug 28 2014 Matthias Clasen <mclasen@redhat.com> - 0.20.4-6
+- Fix build on ppc64le
+Resolves: #1133111
+
 * Fri Jan 24 2014 Daniel Mach <dmach@redhat.com> - 0.20.4-5
 - Mass rebuild 2014-01-24
 

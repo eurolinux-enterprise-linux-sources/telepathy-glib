@@ -286,10 +286,12 @@ enum
 {
     PROP_PROTOCOL = 1,
     PROP_SELF_HANDLE,
+    PROP_SELF_ID,
     PROP_INTERFACES,
     PROP_DBUS_STATUS,
     PROP_DBUS_DAEMON,
     PROP_HAS_IMMORTAL_HANDLES,
+    PROP_ACCOUNT_PATH_SUFFIX,
     N_PROPS
 };
 
@@ -390,6 +392,8 @@ channel_request_cancel (gpointer data, gpointer user_data)
 
 struct _TpBaseConnectionPrivate
 {
+  const gchar *self_id;
+
   /* Telepathy properties */
   gchar *protocol;
 
@@ -438,6 +442,8 @@ struct _TpBaseConnectionPrivate
   /* GQuark iface => GHashTable {
    *    unique name borrowed from interested_clients => gsize count } */
   GHashTable *client_interests;
+
+  gchar *account_path_suffix;
 };
 
 static const gchar * const *tp_base_connection_get_interfaces (
@@ -477,6 +483,10 @@ tp_base_connection_get_property (GObject *object,
       g_value_set_uint (value, self->self_handle);
       break;
 
+    case PROP_SELF_ID:
+      g_value_set_string (value, self->priv->self_id);
+      break;
+
     case PROP_INTERFACES:
       g_value_set_boxed (value, tp_base_connection_get_interfaces (self));
       break;
@@ -491,6 +501,10 @@ tp_base_connection_get_property (GObject *object,
 
     case PROP_HAS_IMMORTAL_HANDLES:
       g_value_set_boolean (value, TRUE);
+      break;
+
+    case PROP_ACCOUNT_PATH_SUFFIX:
+      g_value_set_string (value, self->priv->account_path_suffix);
       break;
 
     default:
@@ -516,19 +530,7 @@ tp_base_connection_set_property (GObject      *object,
       break;
 
     case PROP_SELF_HANDLE:
-      {
-        TpHandle new_self_handle = g_value_get_uint (value);
-
-        if (self->status == TP_CONNECTION_STATUS_CONNECTED)
-          g_return_if_fail (new_self_handle != 0);
-
-        if (self->self_handle == new_self_handle)
-          return;
-
-        self->self_handle = new_self_handle;
-
-        tp_svc_connection_emit_self_handle_changed (self, self->self_handle);
-      }
+      tp_base_connection_set_self_handle (self, g_value_get_uint (value));
       break;
 
     case PROP_DBUS_DAEMON:
@@ -540,6 +542,11 @@ tp_base_connection_set_property (GObject      *object,
           if (dbus_daemon != NULL)
             self->priv->bus_proxy = g_object_ref (dbus_daemon);
         }
+      break;
+
+    case PROP_ACCOUNT_PATH_SUFFIX:
+      g_assert (self->priv->account_path_suffix == NULL); /* construct-only */
+      self->priv->account_path_suffix = g_value_dup_string (value);
       break;
 
     default:
@@ -642,6 +649,7 @@ tp_base_connection_finalize (GObject *object)
   g_free (self->object_path);
   g_hash_table_unref (priv->client_interests);
   g_hash_table_unref (priv->interested_clients);
+  g_free (priv->account_path_suffix);
 
   G_OBJECT_CLASS (tp_base_connection_parent_class)->finalize (object);
 }
@@ -733,7 +741,7 @@ exportable_channel_get_old_info (TpExportableChannel *channel,
 static GValueArray *
 get_channel_details (GObject *obj)
 {
-  GValueArray *structure = g_value_array_new (2);
+  GValueArray *structure;
   GHashTable *table;
   GValue *value;
   gchar *object_path;
@@ -741,12 +749,6 @@ get_channel_details (GObject *obj)
   g_object_get (obj,
       "object-path", &object_path,
       NULL);
-
-  g_value_array_append (structure, NULL);
-  value = g_value_array_get_nth (structure, 0);
-  g_value_init (value, DBUS_TYPE_G_OBJECT_PATH);
-  g_value_take_boxed (value, object_path);
-  object_path = NULL;
 
   g_assert (TP_IS_EXPORTABLE_CHANNEL (obj) || TP_IS_CHANNEL_IFACE (obj));
 
@@ -774,10 +776,13 @@ get_channel_details (GObject *obj)
       g_hash_table_insert (table, TP_PROP_CHANNEL_CHANNEL_TYPE, value);
     }
 
-  g_value_array_append (structure, NULL);
-  value = g_value_array_get_nth (structure, 1);
-  g_value_init (value, TP_HASH_TYPE_QUALIFIED_PROPERTY_VALUE_MAP);
-  g_value_take_boxed (value, table);
+  structure = tp_value_array_build (2,
+      DBUS_TYPE_G_OBJECT_PATH, object_path,
+      TP_HASH_TYPE_QUALIFIED_PROPERTY_VALUE_MAP, table,
+      G_TYPE_INVALID);
+
+  g_free (object_path);
+  g_hash_table_unref (table);
 
   return structure;
 }
@@ -946,7 +951,7 @@ factory_satisfy_requests (TpBaseConnection *conn,
 
       g_ptr_array_add (array, get_channel_details (G_OBJECT (chan)));
       tp_svc_connection_interface_requests_emit_new_channels (conn, array);
-      g_value_array_free (g_ptr_array_index (array, 0));
+      tp_value_array_free (g_ptr_array_index (array, 0));
       g_ptr_array_unref (array);
 
       tp_svc_connection_emit_new_channel (conn, object_path, channel_type,
@@ -1181,7 +1186,7 @@ manager_new_channels_cb (TpChannelManager *manager,
   tp_svc_connection_interface_requests_emit_new_channels (self,
       array);
 
-  g_ptr_array_foreach (array, (GFunc) g_value_array_free, NULL);
+  g_ptr_array_foreach (array, (GFunc) tp_value_array_free, NULL);
   g_ptr_array_unref (array);
 
   /* Emit NewChannel */
@@ -1463,20 +1468,11 @@ get_requestables_foreach (TpChannelManager *manager,
                           gpointer user_data)
 {
   GPtrArray *details = user_data;
-  GValueArray *requestable = g_value_array_new (2);
-  GValue *value;
 
-  g_value_array_append (requestable, NULL);
-  value = g_value_array_get_nth (requestable, 0);
-  g_value_init (value, TP_HASH_TYPE_CHANNEL_CLASS);
-  g_value_set_boxed (value, fixed_properties);
-
-  g_value_array_append (requestable, NULL);
-  value = g_value_array_get_nth (requestable, 1);
-  g_value_init (value, G_TYPE_STRV);
-  g_value_set_boxed (value, allowed_properties);
-
-  g_ptr_array_add (details, requestable);
+  g_ptr_array_add (details, tp_value_array_build (2,
+        TP_HASH_TYPE_CHANNEL_CLASS, fixed_properties,
+        G_TYPE_STRV, allowed_properties,
+        G_TYPE_INVALID));
 }
 
 
@@ -1549,6 +1545,7 @@ tp_base_connection_class_init (TpBaseConnectionClass *klass)
 {
   static TpDBusPropertiesMixinPropImpl connection_properties[] = {
       { "SelfHandle", "self-handle", NULL },
+      { "SelfID", "self-id", NULL },
       { "Status", "dbus-status", NULL },
       { "Interfaces", "interfaces", NULL },
       { "HasImmortalHandles", "has-immortal-handles", NULL },
@@ -1599,6 +1596,21 @@ tp_base_connection_class_init (TpBaseConnectionClass *klass)
       0, G_MAXUINT, 0,
       G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
   g_object_class_install_property (object_class, PROP_SELF_HANDLE, param_spec);
+
+  /**
+   * TpBaseConnection:self-id: (skip)
+   *
+   * The identifier representing the local user. This is the result of
+   * inspecting #TpBaseConnection:self-handle.
+   *
+   * Since: 0.21.2
+   */
+  param_spec = g_param_spec_string ("self-id",
+      "Connection.SelfID",
+      "The identifier representing the local user.",
+      "",
+      G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+  g_object_class_install_property (object_class, PROP_SELF_ID, param_spec);
 
   /**
    * TpBaseConnection:interfaces: (skip)
@@ -1667,6 +1679,27 @@ tp_base_connection_class_init (TpBaseConnectionClass *klass)
       "Connection.HasImmortalHandles",
       "Always TRUE", TRUE, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
   g_object_class_install_property (object_class, PROP_HAS_IMMORTAL_HANDLES,
+      param_spec);
+
+  /**
+   * TpBaseConnection:account-path-suffix:
+   *
+   * The suffix of the account object path such as
+   * "gabble/jabber/chris_40example_2ecom0" for the account whose object path is
+   * %TP_ACCOUNT_OBJECT_PATH_BASE + "gabble/jabber/chris_40example_2ecom0".
+   * The same as returned by tp_account_get_path_suffix().
+   *
+   * It is given by the AccountManager in the connection parameters. Or %NULL if
+   * the ConnectionManager or the AccountManager are too old.
+   *
+   * Since: 0.23.2
+   */
+  param_spec = g_param_spec_string ("account-path-suffix",
+      "Account path suffix",
+      "The suffix of the account path",
+      NULL,
+      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
+  g_object_class_install_property (object_class, PROP_ACCOUNT_PATH_SUFFIX,
       param_spec);
 
   /* signal definitions */
@@ -2830,7 +2863,28 @@ void
 tp_base_connection_set_self_handle (TpBaseConnection *self,
                                     TpHandle self_handle)
 {
-  g_object_set (self, "self-handle", self_handle, NULL);
+  if (self->status == TP_CONNECTION_STATUS_CONNECTED)
+    g_return_if_fail (self_handle != 0);
+
+  if (self->self_handle == self_handle)
+    return;
+
+  self->self_handle = self_handle;
+  self->priv->self_id = NULL;
+
+  if (self_handle != 0)
+    {
+      self->priv->self_id = tp_handle_inspect (
+          self->priv->handles[TP_HANDLE_TYPE_CONTACT], self_handle);
+    }
+
+  tp_svc_connection_emit_self_handle_changed (self, self->self_handle);
+
+  tp_svc_connection_emit_self_contact_changed (self,
+      self->self_handle, self->priv->self_id);
+
+  g_object_notify ((GObject *) self, "self-handle");
+  g_object_notify ((GObject *) self, "self-id");
 }
 
 
@@ -4073,4 +4127,22 @@ tp_base_connection_get_object_path (TpBaseConnection *self)
   g_return_val_if_fail (TP_IS_BASE_CONNECTION (self), NULL);
 
   return self->object_path;
+}
+
+/**
+ * tp_base_connection_get_account_path_suffix:
+ * @self: the connection
+ *
+ * <!-- -->
+ *
+ * Returns: the same value has the #TpBaseConnection:account-path-suffix
+ *  property.
+ * Since: 0.23.2
+ */
+const gchar *
+tp_base_connection_get_account_path_suffix (TpBaseConnection *self)
+{
+  g_return_val_if_fail (TP_IS_BASE_CONNECTION (self), NULL);
+
+  return self->priv->account_path_suffix;
 }

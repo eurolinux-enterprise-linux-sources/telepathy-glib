@@ -371,7 +371,7 @@ test_prepare_success (Test *test,
   g_main_loop_run (test->mainloop);
 
   /* the obvious accessors */
-  g_assert (tp_account_is_prepared (test->account, TP_ACCOUNT_FEATURE_CORE));
+  g_assert (tp_proxy_is_prepared (test->account, TP_ACCOUNT_FEATURE_CORE));
   g_assert (tp_account_is_enabled (test->account));
   assert_boolprop (test->account, "enabled", TRUE);
   g_assert (tp_account_is_valid (test->account));
@@ -614,11 +614,29 @@ test_storage (Test *test,
 }
 
 static void
+check_uri_schemes (const gchar * const * schemes)
+{
+  g_assert (schemes != NULL);
+  g_assert (tp_strv_contains (schemes, "about"));
+  g_assert (tp_strv_contains (schemes, "telnet"));
+  g_assert (schemes[2] == NULL);
+}
+
+static void
+notify_cb (GObject *object,
+    GParamSpec *spec,
+    Test *test)
+{
+  g_main_loop_quit (test->mainloop);
+}
+
+static void
 test_addressing (Test *test,
     gconstpointer mode)
 {
   GQuark account_features[] = { TP_ACCOUNT_FEATURE_ADDRESSING, 0 };
   const gchar * const *schemes;
+  GStrv tmp;
 
   test->account = tp_account_new (test->dbus, ACCOUNT_PATH, NULL);
   g_assert (test->account != NULL);
@@ -645,10 +663,14 @@ test_addressing (Test *test,
   g_main_loop_run (test->mainloop);
 
   schemes = tp_account_get_uri_schemes (test->account);
-  g_assert (schemes != NULL);
-  g_assert (tp_strv_contains (schemes, "about"));
-  g_assert (tp_strv_contains (schemes, "telnet"));
-  g_assert (schemes[2] == NULL);
+  check_uri_schemes (schemes);
+
+  g_object_get (test->account,
+      "uri-schemes", &tmp,
+      NULL);
+
+  check_uri_schemes ((const gchar * const *) tmp);
+  g_strfreev (tmp);
 
   g_assert (tp_account_associated_with_uri_scheme (test->account,
         "about"));
@@ -657,6 +679,21 @@ test_addressing (Test *test,
   g_assert (!tp_account_associated_with_uri_scheme (test->account,
         "xmpp"));
 
+  g_signal_connect (test->account, "notify::uri-schemes",
+      G_CALLBACK (notify_cb), test);
+
+  tp_tests_simple_account_add_uri_scheme (test->account_service, "xmpp");
+  g_main_loop_run (test->mainloop);
+
+  g_assert (tp_account_associated_with_uri_scheme (test->account,
+        "xmpp"));
+}
+
+static void
+avatar_changed_cb (TpAccount *account,
+    Test *test)
+{
+  g_main_loop_quit (test->mainloop);
 }
 
 static void
@@ -684,6 +721,27 @@ test_avatar (Test *test,
   g_assert_cmpstr (((char *) blob->data), ==, ":-)");
 
   tp_clear_object (&test->result);
+
+  /* change the avatar */
+  g_signal_connect (test->account, "avatar-changed",
+      G_CALLBACK (avatar_changed_cb), test);
+
+  tp_tests_simple_account_set_avatar (test->account_service, ":-(");
+  g_main_loop_run (test->mainloop);
+
+  tp_account_get_avatar_async (test->account,
+      tp_tests_result_ready_cb, &test->result);
+  tp_tests_run_until_result (&test->result);
+
+  blob = tp_account_get_avatar_finish (
+      test->account, test->result, &error);
+  g_assert_no_error (error);
+
+  g_assert (blob != NULL);
+  g_assert_cmpuint (blob->len, ==, 4);
+  g_assert_cmpstr (((char *) blob->data), ==, ":-(");
+
+  tp_clear_object (&test->result);
 }
 
 static void
@@ -708,7 +766,7 @@ test_connection (Test *test,
       account_prepare_cb, test);
   g_main_loop_run (test->mainloop);
 
-  g_assert (tp_account_is_prepared (test->account, TP_ACCOUNT_FEATURE_CORE));
+  g_assert (tp_proxy_is_prepared (test->account, TP_ACCOUNT_FEATURE_CORE));
 
   /* a connection turns up */
 
@@ -872,7 +930,6 @@ int
 main (int argc,
       char **argv)
 {
-  g_type_init ();
   tp_tests_abort_after (10);
   tp_debug_set_flags ("all");
 
@@ -945,5 +1002,5 @@ main (int argc,
   g_test_add ("/account/addressing", Test, "later", setup_service,
       test_addressing, teardown_service);
 
-  return g_test_run ();
+  return tp_tests_run_with_bus ();
 }
