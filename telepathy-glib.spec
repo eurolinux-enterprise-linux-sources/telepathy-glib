@@ -5,7 +5,7 @@
 %global vala_ver	0.16.0
 
 Name:           telepathy-glib
-Version:        0.24.0
+Version:        0.24.1
 Release:        1%{?dist}
 Summary:        GLib bindings for Telepathy
 
@@ -13,6 +13,8 @@ Group:          System Environment/Libraries
 License:        LGPLv2+
 URL:            http://telepathy.freedesktop.org/wiki/FrontPage
 Source0:        http://telepathy.freedesktop.org/releases/%{name}/%{name}-%{version}.tar.gz
+# https://bugs.freedesktop.org/show_bug.cgi?id=92245
+Patch0:         telepathy-glib-0.24.1-glib246.patch
 
 BuildRequires:  gtk-doc >= 1.17
 BuildRequires:  dbus-devel >= %{dbus_ver}
@@ -60,6 +62,7 @@ developing applications that use %{name}.
 
 %prep
 %setup -q
+%patch0 -p1
 
 
 %check
@@ -106,6 +109,12 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 
 
 %changelog
+* Tue Oct 31 2017 Kalev Lember <klember@redhat.com> - 0.24.1-1
+- Update to 0.24.1
+- Fix the build with glib 2.46 and later
+- Rebuild against gobject-introspection 1.54
+- Resolves: #1507813
+
 * Thu Mar 19 2015 Richard Hughes <rhughes@redhat.com> - 0.24.0-1
 - Update to 0.24.0.
 Resolves: #1174520
